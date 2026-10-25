@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import secrets
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from .. import repo, service
 from ..db import Database, parse_iso
@@ -42,6 +42,13 @@ def ago_delta(s: float) -> str:
     if s < 172_800:
         return f"{int(s // 3600)}h"
     return f"{int(s // 86400)}d"
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def ist(dt: datetime | None) -> str:
+    return "unknown" if dt is None else dt.astimezone(IST).strftime("%d %b %Y %H:%M IST")
 
 
 def origin_badge(origin: str | None) -> Raw:
@@ -178,7 +185,7 @@ def offers(ctx: Ctx, include_expired: bool = False) -> str:
         rows.append([
             o.kind.value.replace("_", " "), o.title, service.describe_offer_value(o),
             o.code or "", ", ".join(asins) if asins else "not product-specific", "; ".join(restrictions) or "—",
-            repo.iso(o.valid_until) or "unknown", badge(o.lifecycle.value, LC_KIND.get(o.lifecycle, "")),
+            ist(o.valid_until), badge(o.lifecycle.value, LC_KIND.get(o.lifecycle, "")),
             join([badge(o.authenticity.value), " ", f"{c.bp // 100}%"]),
             join([str(n_src), " ", badge("synthetic", "synthetic") if o.is_synthetic else ""]),
             join([form("/actions/flag", ctx.csrf, Raw(f'<input type="hidden" name="offer_id" value="{esc(o.id)}">'
@@ -234,7 +241,7 @@ def product(ctx: Ctx, asin: str) -> str:
             body.append(tag("p", n, class_="muted"))
         body.append(tag("h2", "All feasible combinations"))
         body.append(table(["Offers", "Pay with", "Checkout", "Cash cost", "Cashback (later)", "Risk-adjusted",
-                           "Applies", "Rules"], _scenario_rows(r.scenarios[:15])))
+                           "Applies", "Rules"], _scenario_rows(r.scenarios[:10])))
         if r.excluded:
             body.append(tag("h2", "Offers that don't apply"))
             body.append(table(["Offer", "Why not"], [[e.title, e.reason] for e in r.excluded]))

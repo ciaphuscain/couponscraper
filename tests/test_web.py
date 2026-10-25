@@ -93,6 +93,16 @@ class WebTests(unittest.TestCase):
             self.assertNotIn("<script>alert", body, path)
             self.assertIn("&lt;script&gt;", body, path)
 
+    def test_markup_not_double_escaped(self):
+        repo.set_setting(self.db, "wallet", [{"id": "h", "label": "HDFC CC", "type": "credit_card", "bank": "hdfc"}])
+        self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "watch": True, "offers": [
+            "Save ₹500 with coupon", "10% Instant Discount up to INR 750 on HDFC Bank Credit Card"]})
+        body = self.page("/product/B0TESTASIN").body.decode()
+        self.assertIn("<ol><li>", body)
+        self.assertNotIn("&lt;li&gt;", body)
+        self.assertNotIn("&amp;#x27;", body)
+        self.assertNotIn("&lt;input", body)
+
     def test_malformed_api_input(self):
         self.assertEqual(self.api("POST", "/api/v1/captures", None, headers={})[0], 400)  # empty -> missing fields
         r = self.app.handle(Request("POST", "/api/v1/captures", {}, {**HOST, "x-couponhunter-token": TOKEN}, b"{not json"))

@@ -16,7 +16,17 @@ NAV = [("/", "Overview"), ("/watchlist", "Watchlist"), ("/offers", "Offers"), ("
 
 
 class Raw(str):
-    """Already-safe HTML produced by these helpers."""
+    """Already-safe HTML produced by these helpers.
+
+    Concatenation keeps the result Raw and escapes any plain-str operand, so
+    `Raw(...) + user_text` is safe and `Raw + Raw` is not escaped twice.
+    """
+
+    def __add__(self, other: object) -> "Raw":
+        return Raw(str.__add__(self, other if isinstance(other, Raw) else esc(other)))
+
+    def __radd__(self, other: object) -> "Raw":
+        return Raw((other if isinstance(other, Raw) else esc(other)) + str(self))
 
 
 def esc(v: object) -> str:
