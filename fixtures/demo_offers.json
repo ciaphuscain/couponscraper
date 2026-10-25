@@ -1,0 +1,62 @@
+{
+  "synthetic": true,
+  "_comment": "FICTIONAL demo offers for the fictional product B0DEMO0001. Mirrors the spec's worked example. Never real.",
+  "offers": [
+    {
+      "kind": "product_coupon",
+      "title": "Apply ₹500 coupon (demo)",
+      "discount": "₹500",
+      "basis": "price",
+      "asins": ["B0DEMO0001"],
+      "valid_until": "2027-12-31",
+      "stacks_with": {"bank_instant": "yes", "portal_cashback": "yes"}
+    },
+    {
+      "kind": "bank_instant",
+      "title": "10% Instant Discount up to ₹750 on HDFC Bank Credit Cards (demo)",
+      "provider": "HDFC Bank",
+      "discount": "10%",
+      "max_discount": "₹750",
+      "min_order": "₹5000",
+      "basis": "after_coupons",
+      "payment": {"banks": ["hdfc"], "types": ["credit_card"]},
+      "valid_until": "2027-12-31",
+      "stacks_with": {"product_coupon": "yes"}
+    },
+    {
+      "kind": "bank_instant",
+      "title": "5% Instant Discount up to ₹400 on SBI Debit Cards (demo)",
+      "provider": "SBI",
+      "discount": "5%",
+      "max_discount": "₹400",
+      "payment": {"banks": ["sbi"], "types": ["debit_card"]},
+      "valid_until": "2027-12-31"
+    },
+    {
+      "kind": "portal_cashback",
+      "title": "5% cashback up to ₹300 via ExamplePortal (demo)",
+      "provider": "ExamplePortal",
+      "discount": "5%",
+      "max_discount": "₹300",
+      "valid_until": "2027-12-31",
+      "redemption_steps": ["Keep the ExamplePortal tab's tracking confirmation; claims need it"]
+    },
+    {
+      "kind": "promo_code",
+      "title": "₹250 off your first order with code WELCOME250 (demo)",
+      "discount": "₹250",
+      "code": "WELCOME250",
+      "basis": "price",
+      "new_customer_only": true,
+      "valid_until": "2027-12-31"
+    },
+    {
+      "kind": "product_coupon",
+      "title": "Expired ₹800 coupon (demo)",
+      "discount": "₹800",
+      "basis": "price",
+      "asins": ["B0DEMO0001"],
+      "valid_until": "2025-01-31"
+    }
+  ]
+}
