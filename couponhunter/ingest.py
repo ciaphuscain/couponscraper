@@ -198,7 +198,7 @@ def ingest_result(c: sqlite3.Connection, source_id: str, result: FetchResult, no
             if len(stats.errors) < 20:
                 stats.errors.append(f"rejected record: {e}")
             continue
-        fp = n.fingerprint()
+        fp = n.fingerprint()  # in-run dedup only; origin is constant within one result
         if fp in seen_in_run:
             stats.duplicates += 1  # same offer twice in one listing
             continue
@@ -225,6 +225,8 @@ def upsert_offer(c: sqlite3.Connection, n: NormalizedOffer, source_id: str, rec:
                  now: datetime) -> tuple[int, str]:
     """Insert or merge one normalised offer. Returns (offer_id, 'created'|'updated'|'duplicates')."""
     fp = n.fingerprint()
+    if data_origin == "synthetic":
+        fp = "syn-" + fp[:28]  # synthetic data never merges with real observations
     t = iso(now)
     pay = None
     if n.payment:

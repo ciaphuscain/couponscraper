@@ -59,6 +59,11 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(len(self.offers()), 1)
         self.assertEqual(len(repo.offer_provenance(self.db, self.offers()[0]["id"])), 2)
 
+    def test_synthetic_never_merges_with_real(self):
+        ingest.run_source(self.db, "a", NOW, StaticAdapter([COUPON], origin="synthetic"))
+        ingest.run_source(self.db, "b", NOW, StaticAdapter([COUPON], origin="live"))
+        self.assertEqual(sorted(r["data_origin"] for r in self.offers()), ["live", "synthetic"])
+
     def test_duplicate_within_one_listing(self):
         s = ingest.run_source(self.db, "a", NOW, StaticAdapter([HDFC, HDFC]))
         self.assertEqual((s.created, s.duplicates), (1, 1))

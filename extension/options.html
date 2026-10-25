@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>CouponHunter options</title>
+<style>body{font:14px system-ui,sans-serif;max-width:560px;margin:24px auto;padding:0 16px}label{display:block;margin:12px 0 4px}
+input[type=text],input[type=password]{width:100%;padding:6px}button{margin-top:14px;padding:6px 12px}#msg{margin-top:12px}</style></head>
+<body>
+<h1>CouponHunter options</h1>
+<label for="backend">Backend address (must be on this computer)</label>
+<input type="text" id="backend" placeholder="http://127.0.0.1:8765">
+<label for="token">API token (run <code>couponhunter token</code>)</label>
+<input type="password" id="token" autocomplete="off">
+<label><input type="checkbox" id="auto"> Automatically save price &amp; offers when I open a product page</label>
+<p style="color:#6b6b66">Only the product's title, price, seller, stock status and the offer text Amazon shows on that
+page are sent, and only to your own backend. Nothing is read from checkout, your account, or any other site.</p>
+<button id="save">Save</button> <button id="test">Test connection</button>
+<div id="msg"></div>
+<script src="lib.js"></script><script src="options.js"></script>
+</body></html>

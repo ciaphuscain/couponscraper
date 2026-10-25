@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "CouponHunter (personal)",
+  "version": "0.1.0",
+  "description": "Shows the lowest realistic price for the amazon.in product you're viewing, using your local CouponHunter backend.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.in/dp/*",
+        "https://www.amazon.in/*/dp/*",
+        "https://www.amazon.in/gp/product/*",
+        "https://www.amazon.in/gp/aw/d/*"
+      ],
+      "js": ["lib.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "CouponHunter" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'" }
+}
