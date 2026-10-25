@@ -10,3 +10,4 @@ backups/
 config.local.json
 extension/config.local.js
 *.zip
+*.egg-info/

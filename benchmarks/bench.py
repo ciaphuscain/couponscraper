@@ -85,7 +85,7 @@ def gen_offers(n: int) -> list[Offer]:
 
 
 def bench(quick: bool) -> dict:
-    scale = 1 if quick else 5
+    scale = 1 if quick else 2
     res: dict = {}
     asins = [f"B0BENCH{i:03d}" for i in range(200)]
 
@@ -272,7 +272,7 @@ def main() -> None:
     a = ap.parse_args()
     env = {"python": platform.python_version(), "sqlite": __import__("sqlite3").sqlite_version, "os": platform.platform(),
            "cpu_count": os.cpu_count(), "machine": platform.machine(), "date": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    out = {"env": env, "bench": bench(a.quick), "soak": memory_soak(200 if a.quick else 1000)}
+    out = {"env": env, "bench": bench(a.quick), "soak": memory_soak(200 if a.quick else 600)}
     dest = ROOT / "benchmarks" / "results"
     dest.mkdir(exist_ok=True)
     (dest / f"bench-{platform.node() or 'host'}.json").write_text(json.dumps(out, indent=1))

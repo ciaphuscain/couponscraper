@@ -1,0 +1,49 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Python tests (stdlib unittest, no dependencies)
+        run: python -m unittest discover -s tests -t . -v
+      - name: Extension unit tests
+        run: node --test tests/extension/lib.test.js
+      - name: CLI smoke test
+        shell: bash
+        run: |
+          export COUPONHUNTER_HOME="$RUNNER_TEMP/chhome"
+          python -m couponhunter init --demo
+          python -m couponhunter evaluate B0DEMO0001
+          python -m couponhunter alerts --dry-run
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Playwright Chromium (test-only dependency)
+        run: |
+          npm install --no-save playwright@1.50.1
+          npx playwright install --with-deps chromium
+      - name: Extension end-to-end test
+        run: node tests/extension/e2e.js

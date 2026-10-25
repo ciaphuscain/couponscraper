@@ -175,7 +175,7 @@ class FileImportTests(unittest.TestCase):
     def test_json_and_csv_import(self):
         db = open_db(":memory:")
         self.addCleanup(db.close)
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             j = Path(d) / "o.json"
             j.write_text(json.dumps({"synthetic": True, "offers": [HDFC, COUPON, "garbage"]}), encoding="utf-8")
             c = Path(d) / "o.csv"

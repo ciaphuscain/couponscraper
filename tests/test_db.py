@@ -85,7 +85,7 @@ class CrashRecoveryTests(unittest.TestCase):
         the database opens, passes integrity_check and contains no partial batch."""
         if os.name == "nt":
             self.skipTest("uses POSIX signals")
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             path = Path(d) / "t.db"
             db = open_db(path)
             pid = repo.upsert_product(db, "B0TESTASIN", NOW)
@@ -119,7 +119,7 @@ class EvaluationCacheTests(unittest.TestCase):
     def test_cache_invalidated_by_other_connection(self):
         from couponhunter import service
 
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             a = open_db(Path(d) / "c.db")
             b = open_db(Path(d) / "c.db")  # e.g. the CLI while the server runs
             self.addCleanup(a.close)
@@ -134,7 +134,7 @@ class EvaluationCacheTests(unittest.TestCase):
 
 class BackupTests(unittest.TestCase):
     def test_backup_restore_roundtrip_and_pruning(self):
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             db = open_db(Path(d) / "live.db")
             self.addCleanup(db.close)
             repo.upsert_product(db, "B0TESTASIN", NOW, title="Thing")
