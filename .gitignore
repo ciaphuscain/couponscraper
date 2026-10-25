@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+*.db
+*.db-wal
+*.db-shm
+backups/
+.env
+config.local.json
+extension/config.local.js
+*.zip
