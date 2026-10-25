@@ -9,6 +9,7 @@ import tempfile
 import textwrap
 import time
 import unittest
+from datetime import timedelta
 from pathlib import Path
 
 from couponhunter import repo
@@ -112,6 +113,23 @@ class CrashRecoveryTests(unittest.TestCase):
             self.assertEqual(integrity_check(db), "ok")
             self.assertEqual(db.one("SELECT COUNT(*) FROM price_observations")[0], 0)
             self.assertEqual(db.one("SELECT COUNT(*) FROM products")[0], 1)
+
+
+class EvaluationCacheTests(unittest.TestCase):
+    def test_cache_invalidated_by_other_connection(self):
+        from couponhunter import service
+
+        with tempfile.TemporaryDirectory() as d:
+            a = open_db(Path(d) / "c.db")
+            b = open_db(Path(d) / "c.db")  # e.g. the CLI while the server runs
+            self.addCleanup(a.close)
+            self.addCleanup(b.close)
+            pid = repo.upsert_product(a, "B0TESTASIN", NOW)
+            repo.record_price(a, pid, 100_00, NOW, "m", "manual")
+            self.assertEqual(service.evaluate(a, "B0TESTASIN", NOW).result.product.price, 100_00)
+            self.assertIs(service.evaluate(a, "B0TESTASIN", NOW), service.evaluate(a, "B0TESTASIN", NOW))
+            repo.record_price(b, pid, 90_00, NOW + timedelta(minutes=1), "m", "manual")
+            self.assertEqual(service.evaluate(a, "B0TESTASIN", NOW).result.product.price, 90_00)
 
 
 class BackupTests(unittest.TestCase):

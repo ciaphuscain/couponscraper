@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -64,6 +65,8 @@ class Database:
         self.path = str(path)
         self.conn = connect(path)
         self._lock = threading.RLock()
+        self._write_seq = 0
+        self.instance_id = uuid.uuid4().hex  # cache namespace; never reused
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -79,6 +82,13 @@ class Database:
                 raise
             else:
                 self.conn.execute("COMMIT")
+                self._write_seq += 1
+
+    def version(self) -> tuple[int, int]:
+        """Changes whenever any connection commits: our own writes bump
+        _write_seq; another process's writes bump SQLite's data_version."""
+        with self._lock:
+            return self._write_seq, self.conn.execute("PRAGMA data_version").fetchone()[0]
 
     def query(self, sql: str, params: tuple | dict = ()) -> list[sqlite3.Row]:
         with self._lock:

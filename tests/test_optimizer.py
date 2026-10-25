@@ -241,7 +241,72 @@ class NaiveRankingMistakes(unittest.TestCase):
         self.assertEqual(ids(rank_by(r, "risk_adjusted")), {"hdfc10"})
 
 
+class BasisBounds(unittest.TestCase):
+    """The bounding readings must agree with brute-force enumeration of every basis reading."""
+
+    def test_matches_brute_force(self):
+        import itertools
+        import random
+
+        from couponhunter import optimizer as opt
+        from couponhunter.verification import offer_confidence
+
+        rng = random.Random(7)
+        kinds = [OfferKind.PRODUCT_COUPON, OfferKind.PROMO_CODE, OfferKind.BANK_INSTANT, OfferKind.PORTAL_CASHBACK,
+                 OfferKind.BANK_CASHBACK]
+        bases = {OfferKind.PRODUCT_COUPON: [Basis.PRICE], OfferKind.PROMO_CODE: [Basis.PRICE, Basis.AFTER_COUPONS],
+                 OfferKind.BANK_INSTANT: [Basis.PRICE, Basis.AFTER_COUPONS],
+                 OfferKind.PORTAL_CASHBACK: [Basis.PRICE, Basis.PAYABLE], OfferKind.BANK_CASHBACK: [Basis.PRICE, Basis.PAYABLE]}
+        checked = 0
+        for trial in range(400):
+            offers = []
+            for k in kinds:
+                if rng.random() < 0.8:
+                    pct = rng.random() < 0.6
+                    offers.append(offer(f"{k.value}{trial}", k, basis=Basis.UNKNOWN,
+                                        discount_type=DiscountType.PERCENT if pct else DiscountType.FLAT,
+                                        value=rng.choice([500, 1000, 2000]) if pct else rupees(rng.choice([200, 500, 900])),
+                                        max_discount=rupees(rng.choice([500, 1500, 5000])) if pct else None,
+                                        min_order=rupees(rng.choice([0, 8500, 9000, 9400, 9600])) or None,
+                                        stacks_with={x.value: YES for x in kinds}))
+            price = rupees(rng.choice([9_000, 10_000, 12_000]))
+            prod = product(price // 100)
+            r = optimize(prod, offers, user(), NOW)
+            got = {s.offer_ids: s for s in r.scenarios}
+            for n in range(len(offers) + 1):
+                for combo in itertools.combinations(offers, n):
+                    conf = {o.id: offer_confidence(o).bp for o in combo}
+                    results = []
+                    for choice in itertools.product(*(bases[o.kind] for o in combo)):
+                        res = opt._evaluate(price, list(combo), {o.id: b for o, b in zip(combo, choice)}, None, conf)
+                        results.append(res)
+                    key = tuple(sorted(o.id for o in combo))
+                    feasible = all(not isinstance(x, str) for x in results)
+                    self.assertEqual(feasible, key in got, (trial, key))
+                    if feasible:
+                        self.assertEqual(got[key].checkout_payable, max(x[1] for x in results), (trial, key))
+                        self.assertEqual(got[key].optimistic_payable, min(x[1] for x in results), (trial, key))
+                        checked += 1
+        self.assertGreater(checked, 1000)
+
+
 class Bounds(unittest.TestCase):
+    def test_per_kind_limit_keeps_weaker_offer_that_stacks(self):
+        # Strongest coupon doesn't stack with the bank offer; a weaker one does.
+        strong = offer("c900", OfferKind.PRODUCT_COUPON, discount_type=DiscountType.FLAT, value=rupees(900),
+                       basis=Basis.PRICE, stacks_with={"bank_instant": NO})
+        weak = coupon_500(stacks_with={"bank_instant": YES})
+        fillers = [offer(f"f{i}", OfferKind.PRODUCT_COUPON, discount_type=DiscountType.FLAT, value=rupees(10 + i),
+                         basis=Basis.PRICE, stacks_with={"bank_instant": NO}) for i in range(10)]
+        bank = hdfc_10pct()  # silent on stacking; the coupons declare it
+        r = optimize(product(), [strong, weak, bank, *fillers], user(HDFC_CC), NOW, per_kind_limit=2)
+        self.assertEqual(ids(r.best_confirmed), {"coupon500", "hdfc10"})
+        self.assertTrue(any("pruned" in n for n in r.notes))
+
+    def test_steps_built_for_shown_scenarios(self):
+        r = optimize(product(), [coupon_500()], user(), NOW)
+        self.assertEqual(r.best_confirmed.steps, ["Tick the coupon checkbox on the product page"])
+
     def test_pruning_bounds_search(self):
         many = [
             offer(f"c{i}", OfferKind.PRODUCT_COUPON, discount_type=DiscountType.FLAT, value=rupees(i), basis=Basis.PRICE)
@@ -250,7 +315,7 @@ class Bounds(unittest.TestCase):
             offer(f"p{i}", OfferKind.PROMO_CODE, discount_type=DiscountType.FLAT, value=rupees(i), basis=Basis.PRICE)
             for i in range(1, 40)
         ]
-        r = optimize(product(), many, user(), NOW, max_combinations=100)
+        r = optimize(product(), many, user(), NOW, max_combinations=100, per_kind_limit=20)
         self.assertLessEqual(len(r.scenarios), 100)
         self.assertTrue(any("pruned" in n for n in r.notes))
         self.assertIn("c39", ids(r.best_possible))

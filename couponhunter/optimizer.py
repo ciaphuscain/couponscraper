@@ -46,17 +46,21 @@ from .verification import offer_confidence, settlement_probability_bp
 
 _ORDER = {k: i for i, k in enumerate(APPLICATION_ORDER)}
 
-# Bases that are plausible readings of an UNKNOWN basis, per kind.
-_UNKNOWN_BASES = {
-    OfferKind.PRODUCT_COUPON: [Basis.PRICE],
-    OfferKind.PROMO_CODE: [Basis.PRICE, Basis.AFTER_COUPONS],
-    OfferKind.BANK_INSTANT: [Basis.PRICE, Basis.AFTER_COUPONS],
-    OfferKind.BANK_CASHBACK: [Basis.PRICE, Basis.PAYABLE],
-    OfferKind.AMAZON_PAY_CASHBACK: [Basis.PRICE, Basis.PAYABLE],
-    OfferKind.PORTAL_CASHBACK: [Basis.PRICE, Basis.PAYABLE],
+# Least favourable reading of an UNKNOWN basis, per kind.
+_PESSIMISTIC = {
+    OfferKind.PRODUCT_COUPON: Basis.PRICE,  # nothing is applied before it
+    OfferKind.PROMO_CODE: Basis.AFTER_COUPONS,
+    OfferKind.BANK_INSTANT: Basis.AFTER_COUPONS,
+    OfferKind.BANK_CASHBACK: Basis.PAYABLE,
+    OfferKind.AMAZON_PAY_CASHBACK: Basis.PAYABLE,
+    OfferKind.PORTAL_CASHBACK: Basis.PAYABLE,
 }
-MAX_UNKNOWN_BASIS_OFFERS = 4  # beyond this, only the pessimistic reading is computed
-DEFAULT_MAX_COMBINATIONS = 20_000
+DEFAULT_MAX_COMBINATIONS = 2_000  # per payment instrument
+# Same-kind offers are mutually exclusive, so only the strongest few per kind
+# can appear in the best combination. Keeping more than one leaves room for a
+# weaker offer that stacks where a stronger one doesn't.
+DEFAULT_PER_KIND_LIMIT = 3
+STEPS_FOR_TOP = 25  # redemption steps are only built for scenarios that get shown
 
 
 @dataclass
@@ -277,6 +281,7 @@ def optimize(
     include_hypothetical: bool = False,
     stacking_defaults: dict[frozenset[str], Tri] | None = None,
     max_combinations: int = DEFAULT_MAX_COMBINATIONS,
+    per_kind_limit: int = DEFAULT_PER_KIND_LIMIT,
 ) -> OptimizationResult:
     excluded: list[Exclusion] = []
     notes: list[str] = []
@@ -316,7 +321,7 @@ def optimize(
         groups: dict[OfferKind, list[Offer]] = {}
         for o in cands:
             groups.setdefault(o.kind, []).append(o)
-        _prune(groups, product.price, max_combinations, notes)
+        _prune(groups, product.price, max_combinations, per_kind_limit, conf, notes)
         options = [[None, *g] for g in groups.values()]
         for combo in itertools.product(*options):
             chosen = [o for o in combo if o is not None]
@@ -329,25 +334,35 @@ def optimize(
                 scenarios.append(sc)
 
     scenarios.sort(key=lambda s: (s.risk_adjusted_cost, s.cash_cost, len(s.applied), not s.rules_confirmed))
+    for sc in scenarios[:STEPS_FOR_TOP]:
+        sc.steps = _steps(sc.applied, by_id, sc.instrument)
+    if pruned_notes := [n for n in notes if n.startswith("Search pruned")]:
+        total = sum(int(n.split()[2]) for n in pruned_notes)
+        notes[:] = [n for n in notes if not n.startswith("Search pruned")]
+        notes.append(f"Search pruned {total} weaker same-type offer evaluations to bound computation")
     return OptimizationResult(product, scenarios, excluded, notes)
 
 
-def _prune(groups: dict[OfferKind, list[Offer]], price: int, limit: int, notes: list[str]) -> None:
+def _prune(groups: dict[OfferKind, list[Offer]], price: int, limit: int, per_kind: int, conf: dict[str, int],
+           notes: list[str]) -> None:
     def size() -> int:
         n = 1
         for g in groups.values():
             n *= len(g) + 1
         return n
 
-    for g in groups.values():
-        g.sort(key=lambda o: _benefit(o, price), reverse=True)
     pruned = 0
+    for g in groups.values():
+        g.sort(key=lambda o: (_benefit(o, price) * conf[o.id], _benefit(o, price)), reverse=True)
+        while len(g) > per_kind:
+            g.pop()
+            pruned += 1
     while size() > limit:
         largest = max(groups.values(), key=len)
         largest.pop()
         pruned += 1
     if pruned:
-        notes.append(f"Search pruned: {pruned} lowest-value offers skipped to bound computation")
+        notes.append(f"Search pruned: {pruned} offers")
 
 
 def _scenario(
@@ -372,20 +387,29 @@ def _scenario(
         if o.payment is not None and match_payment(o.payment, inst) is Tri.UNKNOWN:
             assumptions.append(f"{o.title}: cannot confirm your payment method qualifies")
 
-    unknown_ids = [o.id for o in chosen if o.basis is Basis.UNKNOWN]
+    # Unknown bases are resolved with bounding readings instead of all 2^n
+    # combinations. Benefits are monotonic in their basis, but one reading
+    # cross-couples: a favourable promo-code reading shrinks the bank offer's
+    # after-coupon basis. So four readings are needed to bound the payable
+    # range and every minimum-spend check (verified against brute force in
+    # tests/test_optimizer.py::BasisBounds).
     fixed = {o.id: o.basis for o in chosen if o.basis is not Basis.UNKNOWN}
-    readings: list[dict[str, Basis]] = []
-    if len(unknown_ids) <= MAX_UNKNOWN_BASIS_OFFERS:
-        for choice in itertools.product(*(_UNKNOWN_BASES[by_id[i].kind] for i in unknown_ids)):
-            readings.append({**fixed, **dict(zip(unknown_ids, choice))})
-    else:
-        # Too many unknowns to enumerate; take the least favourable reading per offer.
-        pess = {
-            i: (Basis.AFTER_COUPONS if by_id[i].kind in INSTANT_KINDS and by_id[i].kind is not OfferKind.PRODUCT_COUPON
-                else Basis.PAYABLE if by_id[i].kind in DEFERRED_KINDS else Basis.PRICE)
-            for i in unknown_ids
-        }
-        readings.append({**fixed, **pess})
+    unknown = [o for o in chosen if o.basis is Basis.UNKNOWN]
+
+    def reading(coupons: str, bank: str, deferred: str) -> dict[str, Basis]:
+        pick = {"price": Basis.PRICE, "pess": None}
+        out = dict(fixed)
+        for o in unknown:
+            mode = coupons if o.kind in (OfferKind.PRODUCT_COUPON, OfferKind.PROMO_CODE) else \
+                bank if o.kind is OfferKind.BANK_INSTANT else deferred
+            out[o.id] = pick[mode] or _PESSIMISTIC[o.kind]
+        return out
+
+    readings = [reading("pess", "pess", "pess")]
+    if unknown:
+        for r in (reading("price", "price", "price"), reading("price", "pess", "pess"), reading("price", "price", "pess")):
+            if r not in readings:
+                readings.append(r)
 
     results = []
     for bases in readings:
@@ -437,7 +461,6 @@ def _scenario(
         success_probability_bp=success,
         assumptions=assumptions,
         rules_confirmed=rules_confirmed,
-        steps=_steps(applied, by_id, inst),
     )
 
 

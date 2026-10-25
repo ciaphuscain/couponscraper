@@ -1,0 +1,113 @@
+{
+ "env": {
+  "python": "3.13.17",
+  "sqlite": "3.45.1",
+  "os": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+  "cpu_count": 4,
+  "machine": "x86_64",
+  "date": "2026-10-25T15:22:05+00:00"
+ },
+ "bench": {
+  "normalize_records_per_s": 57885,
+  "ingest_first_run": {
+   "records": 2000,
+   "created": 848,
+   "dup_in_listing": 1152,
+   "seconds": 0.172,
+   "records_per_s": 11607
+  },
+  "ingest_replay_dedup": {
+   "created": 0,
+   "duplicates": 2000,
+   "seconds": 0.23,
+   "offer_rows_after": 848
+  },
+  "offers_for_asin_lookup": {
+   "candidate_offers": 138,
+   "n": 50,
+   "p50_ms": 4.294,
+   "p95_ms": 8.278,
+   "max_ms": 9.148
+  },
+  "price_history_query_10k_rows": {
+   "n": 30,
+   "p50_ms": 27.327,
+   "p95_ms": 32.916,
+   "max_ms": 34.082
+  },
+  "evaluate_product_10k_history": {
+   "n": 30,
+   "p50_ms": 229.537,
+   "p95_ms": 327.039,
+   "max_ms": 413.549
+  },
+  "api_product_lookup": {
+   "candidate_offers": 133,
+   "n": 50,
+   "p50_ms": 28.181,
+   "p95_ms": 44.495,
+   "max_ms": 48.103
+  },
+  "dashboard_watchlist_100_products": {
+   "n": 5,
+   "p50_ms": 10141.366,
+   "p95_ms": 10574.956,
+   "max_ms": 10658.593
+  },
+  "alert_decide_100_watched": {
+   "seconds": 10.248,
+   "decisions": 100
+  },
+  "db_size_mb": 2.48,
+  "optimize_6_offers": {
+   "scenarios": 80,
+   "n": 20,
+   "p50_ms": 2.433,
+   "p95_ms": 2.519,
+   "max_ms": 2.55
+  },
+  "optimize_12_offers": {
+   "scenarios": 567,
+   "n": 20,
+   "p50_ms": 21.391,
+   "p95_ms": 23.994,
+   "max_ms": 26.868
+  },
+  "optimize_24_offers": {
+   "scenarios": 2304,
+   "n": 20,
+   "p50_ms": 93.252,
+   "p95_ms": 136.898,
+   "max_ms": 153.251
+  },
+  "optimize_60_offers": {
+   "scenarios": 2304,
+   "n": 5,
+   "p50_ms": 95.293,
+   "p95_ms": 111.654,
+   "max_ms": 115.261
+  }
+ },
+ "soak": {
+  "cycles": 200,
+  "simulated_days": 2.1,
+  "traced_mem_kb_samples": [
+   52,
+   88,
+   106,
+   103,
+   120,
+   118,
+   115,
+   112,
+   125,
+   123
+  ],
+  "traced_peak_kb": 471,
+  "offer_rows": 83,
+  "distinct_fingerprints": 83,
+  "alerts_rows": 603,
+  "duplicate_alert_keys": 0,
+  "notifications_sent": 6
+ }
+}

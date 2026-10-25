@@ -6,7 +6,8 @@ Everything the API, CLI, alerting and extension show comes from evaluate().
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from collections import OrderedDict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -30,9 +31,33 @@ class Evaluation:
     verdict: DealVerdict | None
     price_origin: str | None
     list_price: int | None
+    offers: list = field(default_factory=list)
+
+
+_CACHE: OrderedDict[tuple, Evaluation] = OrderedDict()
+_CACHE_SIZE = 512
+_CACHE_BUCKET_S = 300  # lifecycle/staleness are time-dependent; re-evaluate at least every 5 minutes
 
 
 def evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] | None = None) -> Evaluation:
+    """Memoised on (database version, 5-minute time bucket, asin).
+
+    Any commit, by this process or another (e.g. the CLI), invalidates every
+    entry, so a cached answer is never staler than the data plus 5 minutes.
+    """
+    key = (db.instance_id, db.version(), int(now.timestamp()) // _CACHE_BUCKET_S, asin.upper())
+    hit = _CACHE.get(key)
+    if hit is not None:
+        _CACHE.move_to_end(key)
+        return hit
+    ev = _evaluate(db, asin, now, settings)
+    _CACHE[key] = ev
+    if len(_CACHE) > _CACHE_SIZE:
+        _CACHE.popitem(last=False)
+    return ev
+
+
+def _evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] | None = None) -> Evaluation:
     settings = settings or repo.get_settings(db)
     p = repo.get_product(db, asin)
     ctx = repo.product_context(db, asin, now, settings)
@@ -55,7 +80,7 @@ def evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] | 
     best = result.best_confirmed or result.baseline
     verdict = judge_price(stats, best.cash_cost, last["list_price"] if last else None)
     return Evaluation(p["asin"], p["title"], True, result, stats, verdict,
-                      last["data_origin"] if last else None, last["list_price"] if last else None)
+                      last["data_origin"] if last else None, last["list_price"] if last else None, offers)
 
 
 def scenario_json(s: Scenario, offers_by_id: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -109,8 +134,7 @@ def evaluation_json(ev: Evaluation, db: Database, now: datetime, max_scenarios: 
         "price_stats": asdict(ev.stats) if ev.stats else None,
         "deal_verdict": asdict(ev.verdict) if ev.verdict else None,
     })
-    offers = {o.id: o for o in repo.offers_for_asin(db, ev.asin, now)}
-    out["offers"] = [offer_json(o) for o in offers.values()]
+    out["offers"] = [offer_json(o) for o in ev.offers]
     return out
 
 

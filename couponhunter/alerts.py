@@ -110,7 +110,7 @@ def decide(db: Database, now: datetime, settings: dict[str, Any] | None = None) 
         best = ev.result.best_confirmed
         if best is None or best.success_probability_bp < MIN_SUCCESS_BP:
             continue
-        by_id = {o.id: o for o in repo.offers_for_asin(db, w["asin"], now)}
+        by_id = {o.id: o for o in ev.offers}
         price = ev.result.product.price
         immediate = best.instant_savings + best.funding_savings
         min_abs = w["min_savings"] if w["min_savings"] is not None else settings["min_savings_paise"]
