@@ -382,7 +382,7 @@ def parse_offer_text(text: str) -> ParsedText:
         kind = OfferKind.PROMO_CODE
     elif "instant discount" in low or ("discount" in low and banks):
         kind = OfferKind.BANK_INSTANT
-    elif ("cashback" in low or "back" in low) and "amazon pay balance" in low:
+    elif ("cashback" in low or "back" in low) and ("amazon pay balance" in low or ("amazon pay" in low and not banks)):
         kind = OfferKind.AMAZON_PAY_CASHBACK
     elif ("cashback" in low or "% back" in low) and (banks or types):
         kind = OfferKind.BANK_CASHBACK

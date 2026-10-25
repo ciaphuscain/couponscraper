@@ -81,6 +81,18 @@ class AlertTests(unittest.TestCase):
         r = alerts.run_alerts(self.db, n, NOW + timedelta(hours=1))
         self.assertEqual((r["suppressed"], len(n.sent)), (1, 1))
 
+    def test_downgrade_not_alerted(self):
+        n = Recorder()
+        alerts.run_alerts(self.db, n, NOW)  # ₹500 coupon alert
+        with self.db.tx() as c:
+            c.execute("UPDATE offers SET valid_until=?", ("2026-10-25T20:00:00Z",))  # coupon expires
+        ingest.run_source(self.db, "s", NOW + timedelta(hours=13), Adapter([
+            {"kind": "product_coupon", "title": "₹300 coupon", "discount": "₹300", "asins": [ASIN], "basis": "price",
+             "valid_until": "2026-11-30"}]))
+        repo.record_price(self.db, self.pid, 10_000_00, NOW + timedelta(hours=13), "ext", "synthetic")
+        r = alerts.run_alerts(self.db, n, NOW + timedelta(hours=13))  # past cooldown, but worse than last week's alert
+        self.assertEqual((r["suppressed"], len(n.sent)), (1, 1))
+
     def test_quiet_hours_defer_then_deliver(self):
         night = datetime(2026, 10, 25, 18, 0, tzinfo=timezone.utc)  # 23:30 IST
         repo.record_price(self.db, self.pid, 10_000_00, night, "ext", "synthetic")

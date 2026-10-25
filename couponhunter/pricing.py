@@ -83,18 +83,19 @@ def judge_price(stats: PriceStats, effective_price: int, list_price: int | None 
         return v
     assert stats.median is not None and stats.minimum is not None
     below_median_bp = (stats.median - effective_price) * 10_000 // stats.median
-    if below_median_bp >= 500:
+    # A deal must clear normal price noise: at least 5% below the median, and
+    # at least twice the observed volatility. A new "lowest" that is within
+    # noise is reported as a caveat, not as a deal.
+    threshold = max(500, 2 * (stats.volatility_bp or 0))
+    if below_median_bp >= threshold:
         v.is_good_deal = True
         v.reasons.append(f"{below_median_bp / 100:.1f}% below the median observed price")
-    if effective_price <= stats.minimum:
-        if below_median_bp < 200:
-            # Matching the minimum of a flat price series is not a deal.
-            v.caveats.append("equals the lowest observed price, but the price has barely varied")
-        elif stats.coverage_days >= MIN_DAYS_FOR_LOWEST_CLAIM:
-            v.is_good_deal = True
+        if effective_price <= stats.minimum and stats.coverage_days >= MIN_DAYS_FOR_LOWEST_CLAIM:
             v.reasons.append(f"lowest in the {stats.coverage_days:.0f} days observed ({stats.count} observations)")
-        else:
-            v.caveats.append(f"lowest observed, but history covers only {stats.coverage_days:.0f} days")
+    elif effective_price <= stats.minimum:
+        v.caveats.append("matches the lowest observed price, but within normal price variation")
+    if v.is_good_deal and stats.coverage_days < MIN_DAYS_FOR_LOWEST_CLAIM:
+        v.caveats.append(f"history covers only {stats.coverage_days:.0f} days")
     if stats.raised_recently:
         v.caveats.append("price was raised in the last 14 days; the 'discount' may just undo that rise")
     if list_price and stats.median and list_price > stats.median * 13 // 10:

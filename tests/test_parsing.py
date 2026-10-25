@@ -172,9 +172,16 @@ class PricingTests(unittest.TestCase):
 
     def test_short_coverage_no_lowest_claim(self):
         s = compute_stats(self.obs([1000] * 6, days_apart=1), self.NOW)
-        v = judge_price(s, 980)
-        self.assertFalse(v.is_good_deal)
+        v = judge_price(s, 900)
+        self.assertTrue(v.is_good_deal)
+        self.assertFalse(any("lowest" in r for r in v.reasons))
         self.assertTrue(any("covers only" in c for c in v.caveats))
+
+    def test_new_low_within_noise_is_not_a_deal(self):
+        s = compute_stats(self.obs([1000, 1030, 970, 1010, 990, 1020, 980] * 3), self.NOW)
+        v = judge_price(s, 970)
+        self.assertFalse(v.is_good_deal)
+        self.assertTrue(any("within normal price variation" in c for c in v.caveats))
 
     def test_pre_sale_inflation(self):
         s = compute_stats(self.obs([1000, 1000, 1000, 1000, 1300, 1300, 1050], days_apart=2), self.NOW)

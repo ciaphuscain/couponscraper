@@ -24,7 +24,8 @@ from .notify import Notifier, NotifyError
 from .optimizer import Scenario
 
 MAX_ATTEMPTS = 5
-MIN_SUCCESS_BP = 5_000  # don't alert on combinations more likely to fail than work
+MIN_SUCCESS_BP = 5_000
+DOWNGRADE_WINDOW = timedelta(days=7)  # don't alert on combinations more likely to fail than work
 
 
 @dataclass
@@ -146,8 +147,16 @@ def enqueue(db: Database, decisions: list[AlertDecision], now: datetime, setting
                    AND created_at>=? ORDER BY created_at DESC LIMIT 1""",
                 (d.product_id, iso(now - cooldown)),
             ).fetchone()
+            # A worse deal than one we told the user about this week is not news
+            # (typically the better offer just expired or went stale).
+            better_sent = c.execute(
+                """SELECT 1 FROM alerts WHERE product_id=? AND status IN ('sent','pending','deferred')
+                   AND created_at>=? AND savings>=? AND reason NOT LIKE 'at or below your target%' LIMIT 1""",
+                (d.product_id, iso(now - DOWNGRADE_WINDOW), d.savings),
+            ).fetchone()
             # Within cooldown, only a materially better deal gets through.
-            if recent is not None and d.savings < recent["savings"] + max(10_000, recent["savings"] // 10):
+            if (recent is not None and d.savings < recent["savings"] + max(10_000, recent["savings"] // 10)) or (
+                    better_sent is not None and not d.reason.startswith("at or below your target")):
                 status, next_at = "suppressed", None
                 counts["suppressed"] += 1
             elif quiet is not None:
