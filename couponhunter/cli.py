@@ -185,6 +185,15 @@ def cmd_serve(cfg, a):
         db.close()
 
 
+def cmd_doctor(cfg, a):
+    from .doctor import FAIL, render, run_checks
+
+    checks = run_checks(cfg, online=not a.offline)
+    print(render(checks))
+    if any(c.status == FAIL for c in checks):
+        sys.exit(1)
+
+
 def cmd_backup(cfg, a):
     db = _db(cfg)
     print(backup(db, Path(a.dest) if a.dest else cfg.backup_dir))
@@ -279,6 +288,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--no-bot", action="store_true", help="don't answer Telegram messages even if configured")
     s.add_argument("--channel", default="auto", choices=["auto", "console", "file", "telegram"])
     s.set_defaults(fn=cmd_serve)
+
+    s = sub.add_parser("doctor", help="check the whole setup and explain how to fix problems")
+    s.add_argument("--offline", action="store_true", help="don't contact Telegram")
+    s.set_defaults(fn=cmd_doctor)
 
     s = sub.add_parser("backup", help="consistent online backup")
     s.add_argument("--dest")

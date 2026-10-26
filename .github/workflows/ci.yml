@@ -23,6 +23,17 @@ jobs:
         run: python -m unittest discover -s tests -t . -v
       - name: Extension unit tests
         run: node --test tests/extension/lib.test.js
+      - name: Windows one-command setup script
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $env:COUPONHUNTER_HOME = "$env:RUNNER_TEMP\chsetup"
+          .\scripts\setup.ps1 -Demo
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          .\scripts\setup.ps1          # re-run: must be idempotent
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          .\.venv\Scripts\couponhunter.exe evaluate B0DEMO0001
+          .\.venv\Scripts\couponhunter.exe doctor --offline
       - name: CLI smoke test
         shell: bash
         run: |
