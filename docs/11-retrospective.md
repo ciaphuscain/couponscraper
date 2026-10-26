@@ -22,9 +22,10 @@
 9. **Not verified on real Windows hardware by hand.** CI runs the full Python suite and CLI smoke
    test on `windows-latest`. The Task Scheduler and Telegram steps are documented but were not
    executed in this environment.
-10. **The Telegram bot and the setup script's logon-task step are unverified against the real
-    services.** The bot is tested against a fake Bot API over HTTP. The setup script runs in Windows
-    CI, but without `-AutoStart`.
+10. **The Telegram bot is unverified against the real Telegram service** (tested against a fake Bot
+    API over HTTP), and short-link resolution against Amazon's real link service is untested. The
+    setup script, including `-AutoStart` (the logon task starts a server that answers, and re-running
+    setup while it runs updates and restarts it), is verified in Windows CI.
 11. **Cross-product offer inference is a heuristic.** A bank offer shown on other pages is
     surfaced as "possibly applies". It is never confirmed or alerted, but it can be wrong for
     excluded categories.
@@ -58,7 +59,7 @@ docs/08-benchmarks.md), and **G** in real time on the laptop (a 31-day *simulate
 | Savings optimisation | Worked example; brute-force property test; 0 double counting of cashback/gift cards | Exact, bounded | Pruning can (in theory) miss exotic combos past 3 per kind | Measure real offer-set sizes |
 | Redemption usability | E2E: 1 click to answer + steps; buy/wait verdict; phone flow via Telegram share; feedback by `/applied #` from alerts | Good on PC and phone | No in-page coupon clicking (by design) | Experiment E with real purchases |
 | Decision support | Evidence-named buy/wait advice; card insights counting only confirmed rules | New | Needs weeks of real history | Track advice accuracy vs later prices |
-| Operability | `doctor` (14 checks with fixes); idempotent `setup.ps1` run twice in Windows CI | Good | Logon-task path untested in CI | Manual check on the laptop |
+| Operability | `doctor` (14 checks with fixes); idempotent `setup.ps1` incl. logon task verified in Windows CI (start, health check, re-run while running) | Good | Not tried on a physical PC | First run on the laptop |
 | Cashback tracking | State machine + audit trail; measured provider rates replace priors | Works | Manual status updates | Reminder alerts for overdue cashback |
 | Architecture | Modular monolith, 7 ADRs, I/O-free domain | Appropriate | Single process | — |
 | Coding | Stdlib only; typed; small modules | Readable | Hand-rolled HTTP routing | Revisit at ~30 endpoints |
