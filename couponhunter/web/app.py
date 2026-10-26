@@ -252,6 +252,11 @@ class App:
             return json_response(self.capture(req.json(), now), 201)
         if res == "redemptions" and m == "POST" and not rest:
             return json_response(self.redemption(req.json(), now), 201)
+        if res == "watchlist" and m == "GET" and rest == ["asins"]:
+            return json_response({"asins": [r["asin"] for r in self.db.query(
+                "SELECT p.asin FROM watchlist w JOIN products p ON p.id = w.product_id")]})
+        if res == "observations" and m == "POST" and not rest:
+            return json_response(self.observations(req.json(), now), 201)
         if res == "offers" and m == "GET" and not rest:
             return json_response({"offers": [service.offer_json(o, a) for o, a in repo.all_offers(self.db, now)]})
         raise HttpError(404, "unknown API endpoint")
@@ -301,6 +306,42 @@ class App:
         out["capture"] = {"price_recorded": new_price, "offers_created": stats.created, "offers_updated": stats.updated,
                           "offers_unparsed": stats.rejected, "messages": (stats.errors + stats.warnings)[:10]}
         return out
+
+    LISTING_MIN_INTERVAL_S = 3600
+
+    def observations(self, body: dict[str, Any], now: datetime) -> dict[str, Any]:
+        """Prices of watched products seen on listing pages (opt-in passive observation).
+
+        Data minimisation is enforced here, not trusted to the extension: items
+        for products not on the watchlist are dropped, and an unchanged price is
+        recorded at most once an hour per product.
+        """
+        items = body.get("items")
+        if not isinstance(items, list) or len(items) > 50:
+            raise HttpError(400, "items must be a list of at most 50")
+        watched = {r["asin"]: r["id"] for r in self.db.query(
+            "SELECT p.asin, p.id FROM watchlist w JOIN products p ON p.id = w.product_id")}
+        recorded = skipped = 0
+        for it in items:
+            if not isinstance(it, dict):
+                raise HttpError(400, "each item must be an object")
+            asin = normalize_asin(str(it.get("asin", "")))
+            price = _int_paise(it.get("price"), "price", required=True)
+            pid = watched.get(asin)
+            if pid is None:
+                skipped += 1
+                continue
+            last = self.db.one(
+                "SELECT price, observed_at FROM price_observations WHERE product_id=? AND source='extension_listing' "
+                "ORDER BY observed_at DESC LIMIT 1", (pid,))
+            if last and last["price"] == price and (now - repo.parse_iso(last["observed_at"])).total_seconds() < self.LISTING_MIN_INTERVAL_S:
+                skipped += 1
+                continue
+            if repo.record_price(self.db, pid, price, now, "extension_listing", "live"):
+                recorded += 1
+            else:
+                skipped += 1  # same product + source + timestamp already stored
+        return {"recorded": recorded, "skipped": skipped}
 
     def redemption(self, body: dict[str, Any], now: datetime) -> dict[str, Any]:
         outcome = body.get("outcome")

@@ -177,6 +177,23 @@ class WebTests(unittest.TestCase):
         self.assertEqual(r.missing[0].extra_savings, 1_000_00 - 750_00)  # 10% of 10,000 capped at 1,500 = 1,000
         self.assertEqual(self.page("/cards").status, 200)
 
+    def test_passive_observations_only_for_watched_and_rate_limited(self):
+        self.post_form("/actions/watch", {"url": "B0TESTASIN"})
+        st, out, _ = self.api("GET", "/api/v1/watchlist/asins")
+        self.assertEqual(out, {"asins": ["B0TESTASIN"]})
+        st, out, _ = self.api("POST", "/api/v1/observations", {"items": [
+            {"asin": "B0TESTASIN", "price": 9_999_00}, {"asin": "B0NOTWATCH", "price": 100_00}]})
+        self.assertEqual((st, out), (201, {"recorded": 1, "skipped": 1}))
+        self.assertIsNone(self.db.one("SELECT 1 FROM products WHERE asin='B0NOTWATCH'"))  # never stored
+        out = self.api("POST", "/api/v1/observations", {"items": [{"asin": "B0TESTASIN", "price": 9_999_00}]})[1]
+        self.assertEqual(out["recorded"], 0)  # unchanged within the hour
+        out = self.api("POST", "/api/v1/observations", {"items": [{"asin": "B0TESTASIN", "price": 9_500_00}]})[1]
+        self.assertEqual(out["recorded"], 0)  # same timestamp (fixed test clock) -> idempotent insert
+        ev = self.api("GET", "/api/v1/products/B0TESTASIN")[1]
+        self.assertEqual(ev["price"], 9_999_00)
+        self.assertEqual(self.api("POST", "/api/v1/observations", {"items": "x"})[0], 400)
+        self.assertEqual(self.api("POST", "/api/v1/observations", {"items": [{"asin": "B0TESTASIN", "price": -5}]})[0], 400)
+
     def test_unknown_product(self):
         st, out, _ = self.api("GET", "/api/v1/products/B0UNKNOWN1")
         self.assertEqual((st, out["tracked"]), (404, False))

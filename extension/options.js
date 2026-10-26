@@ -1,15 +1,17 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 (async () => {
-  const s = await chrome.storage.local.get({ backendUrl: "http://127.0.0.1:8765", token: "", autoCapture: false });
+  const s = await chrome.storage.local.get({ backendUrl: "http://127.0.0.1:8765", token: "", autoCapture: false, observeWatched: false });
   $("backend").value = s.backendUrl;
   $("token").value = s.token;
   $("auto").checked = s.autoCapture;
+  $("observe").checked = s.observeWatched;
 })();
 $("save").addEventListener("click", async () => {
   const base = CHLib.normalizeBackendUrl($("backend").value.trim());
   if (!base) { $("msg").textContent = "Backend must be http://127.0.0.1:<port> or http://localhost:<port>"; return; }
-  await chrome.storage.local.set({ backendUrl: base, token: $("token").value.trim(), autoCapture: $("auto").checked });
+  await chrome.storage.local.set({ backendUrl: base, token: $("token").value.trim(), autoCapture: $("auto").checked,
+                                  observeWatched: $("observe").checked });
   $("msg").textContent = "Saved.";
 });
 $("test").addEventListener("click", () => {

@@ -166,7 +166,26 @@
     return { asin, title, price, list_price: listPrice || null, seller, offers: offers.slice(0, 30), in_stock: inStock, warnings };
   }
 
-  const api = { asinFromUrl, parseInrToPaise, formatPaise, isSafeRedemptionUrl, normalizeBackendUrl, validateEvaluation, extractPage };
+  /* Prices of *watched* ASINs that appear on a listing page (search, deals,
+   * wishlist, cart). Reads only [data-asin] tiles; ignores strike-through
+   * reference prices. Anything not on the watchlist is never collected. */
+  function extractListingPrices(doc, watched) {
+    const out = new Map();
+    doc.querySelectorAll("[data-asin]").forEach((el) => {
+      const asin = (el.getAttribute("data-asin") || "").toUpperCase();
+      if (!ASIN_RE.test(asin) || !watched.has(asin) || out.has(asin)) return;
+      const priceEl = el.querySelector(".a-price:not(.a-text-price) .a-offscreen");
+      const price = parseInrToPaise(textOf(priceEl));
+      if (price) out.set(asin, price);
+    });
+    return Array.from(out, ([asin, price]) => ({ asin, price })).slice(0, 50);
+  }
+
+  function isAmazonPage(href) {
+    try { const u = new URL(href); return u.protocol === "https:" && AMAZON_HOSTS.has(u.hostname); } catch (e) { return false; }
+  }
+
+  const api = { asinFromUrl, extractListingPrices, isAmazonPage, parseInrToPaise, formatPaise, isSafeRedemptionUrl, normalizeBackendUrl, validateEvaluation, extractPage };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CHLib = api;
 })(typeof self !== "undefined" ? self : this);

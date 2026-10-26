@@ -86,3 +86,23 @@ test("extractPage reads price/offers and warns when the layout changed", () => {
   assert.strictEqual(broken.price, null);
   assert.ok(broken.warnings[0].includes("layout"));
 });
+
+test("extractListingPrices reads only watched tiles and skips reference prices", () => {
+  const tile = (asin, price, strike) => ({
+    getAttribute: () => asin,
+    querySelector: (sel) => (sel.includes(":not(.a-text-price)") && price ? { textContent: price } : null),
+    strike,
+  });
+  const doc = { querySelectorAll: (s) => (s === "[data-asin]" ? [
+    tile("B0WATCHED1", "₹1,299"), tile("B0OTHER001", "₹99"), tile("B0WATCHED1", "₹1,000"),
+    tile("B0WATCHED2", null), tile("", "₹5"),
+  ] : []) };
+  const out = L.extractListingPrices(doc, new Set(["B0WATCHED1", "B0WATCHED2"]));
+  assert.deepStrictEqual(out, [{ asin: "B0WATCHED1", price: 129900 }]);
+});
+
+test("isAmazonPage", () => {
+  assert.ok(L.isAmazonPage("https://www.amazon.in/s?k=x"));
+  assert.ok(!L.isAmazonPage("https://www.amazon.in.evil.example/"));
+  assert.ok(!L.isAmazonPage("http://www.amazon.in/"));
+});

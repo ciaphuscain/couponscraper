@@ -9,6 +9,8 @@ input[type=text],input[type=password]{width:100%;padding:6px}button{margin-top:1
 <label for="token">API token (run <code>couponhunter token</code>)</label>
 <input type="password" id="token" autocomplete="off">
 <label><input type="checkbox" id="auto"> Automatically save price &amp; offers when I open a product page</label>
+<label><input type="checkbox" id="observe"> Record prices of my <b>watched</b> products wherever they appear on amazon.in
+(search results, deals, wishlist, cart). Never on checkout, sign-in, account or payment pages.</label>
 <p style="color:#6b6b66">Only the product's title, price, seller, stock status and the offer text Amazon shows on that
 page are sent, and only to your own backend. Nothing is read from checkout, your account, or any other site.</p>
 <button id="save">Save</button> <button id="test">Test connection</button>

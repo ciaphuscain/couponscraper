@@ -16,6 +16,19 @@
       ],
       "js": ["lib.js", "content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.amazon.in/*"],
+      "exclude_matches": [
+        "https://www.amazon.in/dp/*", "https://www.amazon.in/*/dp/*", "https://www.amazon.in/gp/product/*",
+        "https://www.amazon.in/gp/aw/d/*", "https://www.amazon.in/gp/buy/*", "https://www.amazon.in/ap/*",
+        "https://www.amazon.in/gp/css/*", "https://www.amazon.in/gp/your-account/*", "https://www.amazon.in/your-account/*",
+        "https://www.amazon.in/cpe/*", "https://www.amazon.in/hz/mycd/*", "https://www.amazon.in/gp/sign-in*",
+        "https://www.amazon.in/checkout/*", "https://www.amazon.in/gp/help/*", "https://www.amazon.in/amazonpay/*",
+        "https://www.amazon.in/gp/sva/*", "https://www.amazon.in/hfc/*"
+      ],
+      "js": ["lib.js", "observe.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": { "default_popup": "popup.html", "default_title": "CouponHunter" },

@@ -3,7 +3,9 @@
  * ask for before forwarding a fixed set of operations. */
 importScripts("lib.js");
 
-const DEFAULTS = { backendUrl: "http://127.0.0.1:8765", token: "", autoCapture: false };
+const DEFAULTS = { backendUrl: "http://127.0.0.1:8765", token: "", autoCapture: false, observeWatched: false };
+const WATCHED_TTL_MS = 10 * 60 * 1000;
+let watchedCache = { at: 0, data: null };
 const TIMEOUT_MS = 4000;
 
 async function settings() {
@@ -43,6 +45,13 @@ function fromAmazonProductPage(sender) {
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   const pageAsin = fromAmazonProductPage(sender);
+  const fromAmazon = sender.id === chrome.runtime.id && sender.tab && typeof sender.url === "string" &&
+    CHLib.isAmazonPage(sender.url);
+  // Listing pages (no ASIN in URL) may only use the passive-observation operations.
+  if (msg && fromAmazon && !pageAsin && ["settings", "watched", "observe"].includes(msg.type)) {
+    handleListing(msg).then(reply, () => reply({ ok: false, error: "internal error" }));
+    return true;
+  }
   // Popup/options pages are extension pages (options opens in a tab, so check the URL, not sender.tab).
   const fromPopup = sender.id === chrome.runtime.id && typeof sender.url === "string" &&
     sender.url.startsWith(chrome.runtime.getURL(""));
@@ -79,8 +88,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
           offer_id: msg.offer_id, asin: pageAsin, outcome: msg.outcome, channel: "extension",
           idempotency_key: String(msg.key || "").slice(0, 64),
         });
-      case "settings":
-        return { ok: true, data: { autoCapture: (await settings()).autoCapture } };
+      case "settings": {
+        const st = await settings();
+        return { ok: true, data: { autoCapture: st.autoCapture, observeWatched: st.observeWatched } };
+      }
       default:
         return { ok: false, error: "unknown request" };
     }
@@ -88,3 +99,22 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   handle().then(reply, () => reply({ ok: false, error: "internal error" }));
   return true; // async reply
 });
+
+async function handleListing(msg) {
+  const st = await settings();
+  if (msg.type === "settings") return { ok: true, data: { autoCapture: false, observeWatched: st.observeWatched } };
+  if (!st.observeWatched) return { ok: false, error: "disabled" };
+  if (msg.type === "watched") {
+    if (watchedCache.data && Date.now() - watchedCache.at < WATCHED_TTL_MS) return { ok: true, data: watchedCache.data };
+    const r = await call("GET", "/api/v1/watchlist/asins");
+    if (r.ok && r.data && Array.isArray(r.data.asins)) watchedCache = { at: Date.now(), data: r.data };
+    return r;
+  }
+  if (msg.type === "observe") {
+    const items = Array.isArray(msg.items) ? msg.items.slice(0, 50).filter(
+      (i) => i && typeof i.asin === "string" && /^[A-Z0-9]{10}$/.test(i.asin) && Number.isInteger(i.price) && i.price > 0) : [];
+    if (!items.length) return { ok: false, error: "nothing to record" };
+    return call("POST", "/api/v1/observations", { items });
+  }
+  return { ok: false, error: "unknown request" };
+}
