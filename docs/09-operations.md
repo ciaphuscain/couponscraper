@@ -63,8 +63,8 @@ Invoke-RestMethod http://127.0.0.1:8765/healthz        # -> ok : True
 ### Start automatically at logon (always-on laptop)
 
 ```powershell
-$exe = (Resolve-Path .\.venv\Scripts\couponhunter.exe).Path
-$action   = New-ScheduledTaskAction -Execute $exe -Argument "serve" -WorkingDirectory (Get-Location).Path
+$py = (Resolve-Path .\.venv\Scripts\python.exe).Path   # python.exe directly: one process to stop, no locked launcher
+$action   = New-ScheduledTaskAction -Execute $py -Argument "-m couponhunter serve" -WorkingDirectory (Get-Location).Path
 $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
             -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
@@ -73,6 +73,12 @@ Register-ScheduledTask -TaskName "CouponHunter" -Action $action -Trigger $trigge
 
 Start-ScheduledTask CouponHunter
 Get-ScheduledTask CouponHunter | Get-ScheduledTaskInfo     # LastTaskResult 267009 = running
+```
+
+**Updating later:** `git pull`, then re-run `.\scripts\setup.ps1`. It stops the task, updates, and
+restarts it. If you started the server by hand, stop it first (Ctrl+C).
+
+```powershell
 ```
 
 To keep the laptop awake for alerts, set *Settings → System → Power → Sleep* to "Never" when

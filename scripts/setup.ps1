@@ -60,6 +60,23 @@ if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
     if ($LASTEXITCODE -ne 0) { throw "Could not create the virtual environment." }
 }
 $venvPy = (Resolve-Path ".\.venv\Scripts\python.exe").Path
+
+# Windows locks a running .exe, so a running server would make the reinstall fail
+# (typical when re-running setup after `git pull`). Stop our logon task, restart it after.
+$restartTask = $false
+$task = Get-ScheduledTask -TaskName "CouponHunter" -ErrorAction SilentlyContinue
+if ($task -and $task.State -eq "Running") {
+    Write-Host "    stopping the running CouponHunter task for the update"
+    Stop-ScheduledTask -TaskName "CouponHunter"
+    $restartTask = $true
+}
+$exePath = Join-Path (Get-Location).Path ".venv\Scripts\couponhunter.exe"
+foreach ($i in 1..10) {
+    $running = @(Get-Process -Name couponhunter -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exePath })
+    if ($running.Count -eq 0) { break }
+    if ($restartTask) { Start-Sleep -Seconds 1; continue }
+    throw "CouponHunter is running from this folder (PID $($running[0].Id)). Stop it (Ctrl+C in its window) and re-run setup."
+}
 & $venvPy -m pip install --disable-pip-version-check -q -e .
 if ($LASTEXITCODE -ne 0) { throw "pip install failed (see the messages above)." }
 $ch = (Resolve-Path ".\.venv\Scripts\couponhunter.exe").Path
@@ -74,8 +91,11 @@ if ($AutoStart) {
     Step "Registering logon task 'CouponHunter'"
     if (Get-ScheduledTask -TaskName "CouponHunter" -ErrorAction SilentlyContinue) {
         Write-Host "    already registered (leaving it unchanged)"
+        if ($restartTask) { Start-ScheduledTask -TaskName "CouponHunter"; Write-Host "    restarted" }
     } else {
-        $action   = New-ScheduledTaskAction -Execute $ch -Argument "serve" -WorkingDirectory (Get-Location).Path
+        # Run python.exe directly (not pip's couponhunter.exe launcher, which spawns a child process):
+        # stopping the task then really stops the server, and updates never hit a locked .exe.
+        $action   = New-ScheduledTaskAction -Execute $venvPy -Argument "-m couponhunter serve" -WorkingDirectory (Get-Location).Path
         $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
                     -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
@@ -84,6 +104,11 @@ if ($AutoStart) {
         Start-ScheduledTask -TaskName "CouponHunter" -ErrorAction Stop
         Write-Host "    registered and started"
     }
+}
+
+if ($restartTask -and -not $AutoStart) {
+    Start-ScheduledTask -TaskName "CouponHunter"
+    Write-Host "    restarted the CouponHunter task"
 }
 
 # 5. Health check and next steps.
