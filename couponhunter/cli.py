@@ -163,7 +163,15 @@ def cmd_serve(cfg, a):
     if not a.no_scheduler:
         sched = Scheduler(db, default_jobs(db, _notifier(cfg, a.channel), cfg.backup_dir))
         sched.start()
-    print(f"CouponHunter on http://{cfg.host}:{cfg.port}  (data: {cfg.home})  Ctrl+C to stop")
+    bot = None
+    tg = TelegramNotifier.from_env()
+    if tg is not None and not a.no_bot:
+        from .bot import Bot
+
+        bot = Bot(db, tg)
+        bot.start()
+    print(f"CouponHunter on http://{cfg.host}:{cfg.port}  (data: {cfg.home})"
+          f"{'  Telegram bot: on' if bot else ''}  Ctrl+C to stop")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -172,6 +180,8 @@ def cmd_serve(cfg, a):
         httpd.server_close()
         if sched:
             sched.stop()
+        if bot:
+            bot.stop()
         db.close()
 
 
@@ -266,6 +276,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("serve", help="run dashboard + API + scheduler")
     s.add_argument("--no-scheduler", action="store_true")
+    s.add_argument("--no-bot", action="store_true", help="don't answer Telegram messages even if configured")
     s.add_argument("--channel", default="auto", choices=["auto", "console", "file", "telegram"])
     s.set_defaults(fn=cmd_serve)
 

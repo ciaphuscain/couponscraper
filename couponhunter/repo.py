@@ -41,6 +41,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "stacking_defaults": {},  # {"bank_instant+product_coupon": "yes"} - owner-confirmed rules
     "extra_redemption_domains": [],
     "include_hypothetical_instruments": False,
+    "telegram_offset": 0,  # last processed Telegram update id + 1 (bot restart safety)
 }
 
 CASHBACK_TRANSITIONS = {

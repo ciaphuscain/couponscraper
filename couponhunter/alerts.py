@@ -87,6 +87,8 @@ def render(ev: service.Evaluation, s: Scenario, reason: str, by_id: dict[str, An
                 lines.append(f"⏳ {a.title} ends in {max(hours, 0):.0f}h")
     if s.instrument is not None and any(by_id[a.offer_id].payment for a in s.applied if a.offer_id in by_id):
         lines.append(f"Pay with: {s.instrument.label}")
+    if s.applied:
+        lines.append("Offers: " + ", ".join(f"#{a.offer_id} {a.title[:40]}" for a in s.applied[:4]))
     for a in s.assumptions[:3]:
         lines.append(f"⚠ {a}")
     if s.steps:
@@ -98,6 +100,8 @@ def render(ev: service.Evaluation, s: Scenario, reason: str, by_id: dict[str, An
     if any(by_id[a.offer_id].is_synthetic for a in s.applied if a.offer_id in by_id):
         lines.append("[SYNTHETIC TEST DATA]")
     lines.append(repo.product_url(ev.asin))
+    if s.applied:
+        lines.append("Bought it? Reply /applied <#> or /failed <#> so I learn which offers work.")
     return "\n".join(lines)
 
 

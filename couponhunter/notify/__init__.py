@@ -78,13 +78,14 @@ class TelegramNotifier:
     def __repr__(self) -> str:
         return f"TelegramNotifier(chat_id={self.chat_id!r}, token=<redacted>)"
 
-    def send(self, text: str) -> None:
-        body = json.dumps({"chat_id": self.chat_id, "text": text[:4000], "disable_web_page_preview": True}).encode()
-        req = urllib.request.Request(f"{self.API}/bot{self._token}/sendMessage", data=body,
+    def call(self, method: str, payload: dict, timeout: float = 10) -> dict:
+        """One Bot API call. Errors never include the token (exception chains suppressed)."""
+        body = json.dumps(payload).encode()
+        req = urllib.request.Request(f"{self.API}/bot{self._token}/{method}", data=body,
                                      headers={"Content-Type": "application/json"})
         try:
-            with self._opener.open(req, timeout=10) as resp:
-                data = json.loads(resp.read(65_536) or b"{}")
+            with self._opener.open(req, timeout=timeout) as resp:
+                data = json.loads(resp.read(1_000_000) or b"{}")
         except urllib.error.HTTPError as e:
             try:
                 data = json.loads(e.read(65_536) or b"{}")
@@ -98,3 +99,13 @@ class TelegramNotifier:
             raise NotifyError(f"telegram unreachable: {type(e).__name__}") from None
         if not data.get("ok"):
             raise NotifyError(f"telegram error: {str(data.get('description'))[:200]}")
+        return data
+
+    def send(self, text: str, chat_id: str | None = None) -> None:
+        self.call("sendMessage", {"chat_id": chat_id or self.chat_id, "text": text[:4000],
+                                  "disable_web_page_preview": True})
+
+    def get_updates(self, offset: int, timeout: int = 25) -> list[dict]:
+        data = self.call("getUpdates", {"offset": offset, "timeout": timeout, "allowed_updates": ["message"]},
+                         timeout=timeout + 10)
+        return data.get("result") or []
