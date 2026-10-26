@@ -1,0 +1,75 @@
+# User manual
+
+## Install the browser extension (Chrome, Edge or Brave)
+
+The extension is loaded "unpacked" from your copy of the repository. It is not on the Chrome Web
+Store.
+
+1. Open `chrome://extensions` (Edge: `edge://extensions`).
+2. Turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the `extension` folder inside your `couponscraper` folder.
+4. Click the extension's **Details → Extension options**. Paste the token from
+   `couponhunter token`, keep the backend as `http://127.0.0.1:8765`, then **Save** and
+   **Test connection**.
+5. Optional: tick "Automatically save price & offers" if you're comfortable with automatic
+   capture (see docs/06 §Residual risks). Otherwise nothing is sent until you click Save.
+
+Permissions it asks for: storage (its own settings) and access to `127.0.0.1`/`localhost` (your
+backend). It runs only on amazon.in product pages, and reads nothing from checkout, your account
+or other sites.
+
+After `git pull`, click the reload icon on the extension card.
+
+## Everyday use
+
+### On a product page
+
+A panel appears bottom-right.
+
+* **Not tracked yet** → click **Track**. This saves the price and offers shown and adds the product
+  to your watchlist. **Save price & offers** does the same without watching.
+* **Lowest realistic price** is what you'd pay at checkout using offers whose rules are fully
+  known, with the payment method to use and a probability that every offer applies.
+* **Possibly ₹X if…** is a cheaper combination that depends on something unconfirmed (e.g.
+  whether the coupon and bank offer combine). Try it at checkout; if it works, confirm the rule
+  in Settings → stacking rules.
+* **+ up to ₹Y cashback later** is never included in the price. It's paid later, if at all.
+* Per offer: **Copy code**, **Open offer page** (official sites only), and **Applied ✓ /
+  Didn't apply ✗**. Your feedback raises or lowers that offer's confidence.
+
+### Dashboard (http://127.0.0.1:8765)
+
+| Page | Use it to |
+|---|---|
+| Overview | See what's actionable now, total available savings, realised savings, pending cashback, and source problems |
+| Watchlist | Add products by URL/ASIN, set a target price, see the confirmed and possible best |
+| Product page | Full answer, every feasible combination, offers that don't apply and why, price history verdict, record a price or a purchase |
+| Offers | Browse offers with state (active/stale/expired), source trust, confidence; add an offer you've seen; mark one invalid |
+| Savings & history | Purchases, cashback ledger (move records along pending → confirmed → paid), redemption attempts |
+| Health | Source status and errors, recent runs, scheduler jobs, alert outbox |
+| Settings | Prime/new-customer status, your payment methods, alert thresholds, quiet hours, stacking rules you've confirmed |
+
+### Adding offers yourself
+
+Paste the offer text exactly as shown (Offers → "Add an offer you've seen"). Say where you saw it:
+"on amazon.in or the bank's own site" makes it *official*, anything else stays *unverified*.
+For bulk entry, use a JSON/CSV file and `couponhunter import file.json --evidence official_page`
+(format in `couponhunter/sources/file_import.py`; example in `fixtures/demo_offers.json`).
+
+### Recording what you actually saved
+
+After buying, use **Record a purchase** on the product page: the price without offers, what you
+paid at checkout, and what you actually spent if you paid with discounted gift-card balance. Add
+expected cashback and its provider. Update the cashback on the History page as it settles. Only
+*paid* cashback counts as realised.
+
+## What the labels mean
+
+| Label | Meaning |
+|---|---|
+| `official` | Seen on amazon.in or the issuer's own site (by you or the extension) |
+| `source_listed` / `unverified` | From a feed/file/third party; not independently confirmed |
+| `stale` | No source has re-confirmed it recently. Never used for alerts or "confirmed" answers |
+| `rules known` / `assumptions` | Whether a scenario relies on anything unconfirmed |
+| `synthetic test data` | Demo/fixture data. Never real |
+| `seen on amazon.in` | Price captured from a page you viewed |

@@ -5,148 +5,148 @@
   "os": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
   "cpu_count": 4,
   "machine": "x86_64",
-  "date": "2026-10-25T15:34:04+00:00"
+  "date": "2026-10-26T00:54:16+00:00"
  },
  "bench": {
-  "normalize_records_per_s": 55164,
+  "normalize_records_per_s": 43432,
   "ingest_first_run": {
    "records": 4000,
    "created": 1456,
    "dup_in_listing": 2544,
-   "seconds": 0.279,
-   "records_per_s": 14321
+   "seconds": 0.278,
+   "records_per_s": 14402
   },
   "ingest_replay_dedup": {
    "created": 0,
    "duplicates": 4000,
-   "seconds": 0.288,
+   "seconds": 0.284,
    "offer_rows_after": 1456
   },
   "offers_for_asin_lookup": {
    "candidate_offers": 139,
    "n": 50,
-   "p50_ms": 7.669,
-   "p95_ms": 8.202,
-   "max_ms": 9.941
+   "p50_ms": 4.097,
+   "p95_ms": 5.867,
+   "max_ms": 6.239
   },
   "price_history_query_10k_rows": {
    "n": 30,
-   "p50_ms": 15.953,
-   "p95_ms": 31.662,
-   "max_ms": 32.782
+   "p50_ms": 15.018,
+   "p95_ms": 15.959,
+   "max_ms": 17.799
   },
   "evaluate_product_10k_history_cold": {
    "n": 30,
-   "p50_ms": 247.695,
-   "p95_ms": 307.843,
-   "max_ms": 326.52
+   "p50_ms": 215.612,
+   "p95_ms": 237.157,
+   "max_ms": 280.742
   },
   "api_product_lookup_cold": {
    "candidate_offers": 137,
    "n": 50,
-   "p50_ms": 141.124,
-   "p95_ms": 170.377,
-   "max_ms": 196.147
+   "p50_ms": 130.024,
+   "p95_ms": 155.816,
+   "max_ms": 192.982
   },
   "stress_watchlist_100_products_cold": {
    "n": 2,
-   "p50_ms": 16854.28,
-   "p95_ms": 17090.64,
-   "max_ms": 17116.902
+   "p50_ms": 14995.994,
+   "p95_ms": 15035.39,
+   "max_ms": 15039.767
   },
   "stress_watchlist_100_products_warm": {
    "n": 5,
-   "p50_ms": 5.848,
-   "p95_ms": 6.367,
-   "max_ms": 6.478
+   "p50_ms": 4.546,
+   "p95_ms": 5.039,
+   "max_ms": 5.12
   },
   "stress_alert_decide_100_watched": {
-   "seconds": 17.917,
-   "decisions": 0
+   "seconds": 14.649,
+   "decisions": 100
   },
   "db_size_mb": 2.81,
   "realistic": {
    "candidate_offers_per_product": 27,
    "api_product_lookup_cold": {
     "n": 50,
-    "p50_ms": 14.968,
-    "p95_ms": 26.018,
-    "max_ms": 51.381
+    "p50_ms": 12.787,
+    "p95_ms": 13.776,
+    "max_ms": 33.569
    },
    "api_product_lookup_warm": {
     "n": 50,
-    "p50_ms": 0.622,
-    "p95_ms": 0.818,
-    "max_ms": 0.903
+    "p50_ms": 0.551,
+    "p95_ms": 0.675,
+    "max_ms": 0.699
    },
    "watchlist_page_cold": {
     "n": 3,
-    "p50_ms": 1475.269,
-    "p95_ms": 1490.829,
-    "max_ms": 1492.558
+    "p50_ms": 1150.849,
+    "p95_ms": 1257.312,
+    "max_ms": 1269.141
    },
    "watchlist_page_warm": {
     "n": 10,
-    "p50_ms": 5.87,
-    "p95_ms": 6.231,
-    "max_ms": 6.255
+    "p50_ms": 4.876,
+    "p95_ms": 7.973,
+    "max_ms": 8.146
    },
    "overview_page_warm": {
     "n": 10,
-    "p50_ms": 1.528,
-    "p95_ms": 2.326,
-    "max_ms": 2.555
+    "p50_ms": 3.007,
+    "p95_ms": 4.094,
+    "max_ms": 4.099
    },
    "alert_decide_cold": {
-    "seconds": 1.349,
-    "decisions": 1
+    "seconds": 1.351,
+    "decisions": 33
    }
   },
   "optimize_6_offers": {
    "scenarios": 80,
    "n": 20,
-   "p50_ms": 2.126,
-   "p95_ms": 2.554,
-   "max_ms": 2.556
+   "p50_ms": 2.327,
+   "p95_ms": 2.506,
+   "max_ms": 2.528
   },
   "optimize_12_offers": {
    "scenarios": 567,
    "n": 20,
-   "p50_ms": 20.223,
-   "p95_ms": 28.538,
-   "max_ms": 68.873
+   "p50_ms": 19.406,
+   "p95_ms": 26.394,
+   "max_ms": 43.174
   },
   "optimize_24_offers": {
    "scenarios": 2304,
    "n": 20,
-   "p50_ms": 98.749,
-   "p95_ms": 118.132,
-   "max_ms": 160.171
+   "p50_ms": 98.412,
+   "p95_ms": 132.269,
+   "max_ms": 144.903
   },
   "optimize_60_offers": {
    "scenarios": 2304,
    "n": 5,
-   "p50_ms": 106.924,
-   "p95_ms": 142.563,
-   "max_ms": 144.159
+   "p50_ms": 91.201,
+   "p95_ms": 96.446,
+   "max_ms": 96.842
   }
  },
  "soak": {
   "cycles": 600,
   "simulated_days": 6.2,
   "traced_mem_kb_samples": [
-   596,
-   663,
-   679,
-   689,
-   700,
-   709,
-   717,
-   727,
-   735,
-   743
+   598,
+   661,
+   677,
+   688,
+   699,
+   708,
+   716,
+   726,
+   733,
+   741
   ],
-  "traced_peak_kb": 1041,
+  "traced_peak_kb": 1035,
   "offer_rows": 80,
   "distinct_fingerprints": 80,
   "alerts_rows": 1788,
