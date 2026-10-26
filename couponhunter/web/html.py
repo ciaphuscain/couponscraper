@@ -11,7 +11,7 @@ from typing import Iterable
 
 from ..money import fmt
 
-NAV = [("/", "Overview"), ("/watchlist", "Watchlist"), ("/offers", "Offers"), ("/history", "Savings & history"),
+NAV = [("/", "Overview"), ("/watchlist", "Watchlist"), ("/offers", "Offers"), ("/history", "Savings & history"), ("/cards", "Cards"),
        ("/health", "Health"), ("/settings", "Settings")]
 
 

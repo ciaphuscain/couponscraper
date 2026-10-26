@@ -160,6 +160,23 @@ class WebTests(unittest.TestCase):
         self.assertEqual(repo.inferred_offers(self.db, "B0DEMO0001", NOW, []), [])
         self.assertIsNotNone(pid)
 
+    def test_card_insights(self):
+        from couponhunter.insights import card_report
+
+        repo.set_setting(self.db, "wallet", [{"id": "s", "label": "SBI DC", "type": "debit_card", "bank": "sbi"},
+                                             {"id": "h", "label": "HDFC CC", "type": "credit_card", "bank": "hdfc"}])
+        self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "watch": True, "offers": [
+            "10% Instant Discount up to INR 750 on HDFC Bank Credit Card",
+            "5% Instant Discount up to INR 400 on SBI Debit Card",
+            "10% Instant Discount up to INR 1500 on ICICI Bank Credit Card"]})
+        r = card_report(self.db, NOW)
+        self.assertEqual((r.owned[0].label, r.owned[0].products_best, r.owned[0].savings_where_best), ("HDFC CC", 1, 750_00))
+        self.assertEqual(r.owned[1].products_best, 0)
+        self.assertEqual(len(r.missing), 1)
+        self.assertIn("ICICI", r.missing[0].label)
+        self.assertEqual(r.missing[0].extra_savings, 1_000_00 - 750_00)  # 10% of 10,000 capped at 1,500 = 1,000
+        self.assertEqual(self.page("/cards").status, 200)
+
     def test_unknown_product(self):
         st, out, _ = self.api("GET", "/api/v1/products/B0UNKNOWN1")
         self.assertEqual((st, out["tracked"]), (404, False))

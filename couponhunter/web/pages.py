@@ -409,3 +409,23 @@ def settings(ctx: Ctx, port: int) -> str:
                           "COUPONHUNTER_TELEGRAM_CHAT_ID (never stored in the database). Without them, alerts are "
                           "written to the console and to alerts.jsonl in your data folder.")])
     return page("Settings", body, "/settings", ctx.flash)
+
+
+def cards(ctx: Ctx) -> str:
+    from ..insights import card_report
+
+    r = card_report(ctx.db, ctx.now)
+    owned = [[c.label, c.products_best, money(c.savings_where_best), ", ".join(c.products[:3])] for c in r.owned]
+    missing = [[m.label, m.products, money(m.extra_savings), ", ".join(m.examples)] for m in r.missing[:10]]
+    body = join([
+        tag("p", f"Based on {r.products_evaluated} watched product(s) with a fresh price, using only offers whose "
+                 "rules are confirmed.", class_="muted"),
+        tag("h2", "Your payment methods"),
+        table(["Method", "Best on products", "Savings there", "e.g."], owned,
+              "Add your cards in Settings (bank and type only, never numbers)."),
+        tag("h2", "Cards you don't have that would have saved more"),
+        tag("p", "Extra savings versus the best method you already hold. Not advice to get a card: check fees, "
+                 "and remember offers change.", class_="muted"),
+        table(["Card type", "Products", "Extra savings", "e.g."], missing, "None: your cards cover the offers seen."),
+    ])
+    return page("Card insights", body, "/cards", ctx.flash)

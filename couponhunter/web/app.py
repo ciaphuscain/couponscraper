@@ -347,6 +347,8 @@ class App:
             return html_response(pages.product(ctx, normalize_asin(p.split("/")[2])))
         if p == "/history":
             return html_response(pages.history(ctx))
+        if p == "/cards":
+            return html_response(pages.cards(ctx))
         if p == "/health":
             return html_response(pages.health(ctx, self.status(now)))
         if p == "/settings":
