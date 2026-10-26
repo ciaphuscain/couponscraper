@@ -18,6 +18,15 @@ winget install --id Git.Git -e
 
 ## 2. Install CouponHunter
 
+**One command** (recommended; idempotent, never deletes data):
+
+```powershell
+git clone https://github.com/ciaphuscain/couponscraper.git; cd couponscraper
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -AutoStart     # add -Demo for synthetic sample data
+```
+
+Or step by step:
+
 ```powershell
 cd $HOME
 git clone https://github.com/ciaphuscain/couponscraper.git
@@ -87,7 +96,8 @@ $token = Read-Host "Bot token"         # not saved in shell history
 Remove-Variable token
 ```
 
-4. Restart `couponhunter serve` (or the scheduled task), then test with
+4. Restart `couponhunter serve` (or the scheduled task). The bot starts automatically (disable with
+   `serve --no-bot`); send it `/help`. Then test alerts with
    `couponhunter alerts --dry-run` (prints, sends nothing) and `couponhunter alerts --channel telegram`.
 
 Without Telegram, alerts go to `%LOCALAPPDATA%\CouponHunter\alerts.jsonl`.
@@ -129,6 +139,11 @@ Copy the `backups` folder to another disk or cloud folder occasionally. It conta
 history, so treat it as private.
 
 ## 7. Troubleshooting
+
+Start with **`couponhunter doctor`**. It checks Python, the data folder, database integrity, token
+permissions, whether the server runs (or another program holds the port), extension contact,
+wallet/profile, stale watchlist prices, sources, scheduler, backups, alert delivery and Telegram
+(`--offline` skips the network check), and prints the fix for each problem.
 
 | Symptom | Cause | Fix |
 |---|---|---|

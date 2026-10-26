@@ -7,8 +7,12 @@ A personal, local savings engine for **Amazon India**. It answers one question:
 > what's the easiest legitimate way to get it?
 
 * Runs on your own PC (Windows-first), ₹0 recurring cost, **no third-party Python dependencies**.
-* A Chrome/Edge extension shows the answer on amazon.in product pages. A local dashboard tracks
-  your watchlist, offers, purchases and cashback. Telegram alerts tell you when it's worth buying.
+* **On PC:** a Chrome/Edge extension shows the answer on amazon.in product pages, including a
+  buy-now / wait verdict, and (opt-in) keeps watched products' prices fresh as you browse.
+* **On your phone:** share a product from the Amazon app to your Telegram bot to track it; ask
+  `/best`, record prices and offers, report what worked. Alerts arrive there too.
+* **Dashboard:** watchlist, offers, card insights (which card to use, which card you're missing),
+  purchases and a cashback ledger that counts savings only when they're real.
 * It **never** crawls Amazon, bypasses anti-bot controls, guesses coupon codes, automates
   checkout, inserts affiliate links, or touches your passwords, cards or OTPs.
 
@@ -26,11 +30,10 @@ A personal, local savings engine for **Amazon India**. It answers one question:
 
 ```powershell
 git clone https://github.com/ciaphuscain/couponscraper.git; cd couponscraper
-python -m venv .venv; .\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-couponhunter init --demo        # --demo adds clearly-labelled SYNTHETIC sample data
-couponhunter serve              # http://127.0.0.1:8765 ; sign in with: couponhunter token
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -AutoStart   # add -Demo for SYNTHETIC sample data
+couponhunter doctor          # checks everything and tells you how to fix what isn't right
 ```
+Dashboard: http://127.0.0.1:8765 (sign in with `couponhunter token`).
 
 Then load the extension (`chrome://extensions` → Developer mode → Load unpacked → `extension/`)
 and paste the token in its options. Full guide: [docs/09-operations.md](docs/09-operations.md)
@@ -58,10 +61,17 @@ Price ₹10,000 · coupon ₹500 · HDFC 10% up to ₹750 · cashback 5% up to �
 | Chrome MV3 extension | ✅ unit + end-to-end tested (not on the Web Store) |
 | Price history and deal quality | ✅ (only from observations that reach the system) |
 | Cashback ledger, realised-savings accounting | ✅ |
+| Buy-now / wait advice, price sparkline | ✅ evidence-named |
+| Telegram companion bot (share from the Amazon app) | ✅ tested against a fake Bot API over HTTP |
+| Opt-in passive price observation of watched products | ✅ E2E tested |
+| Cross-product inference of bank offers ("possibly applies") | ✅ never confirmed, never alerted |
+| Card insights | ✅ |
+| `couponhunter doctor`, one-command Windows setup | ✅ setup script run in Windows CI |
 | Amazon Creators API, email import, cashback-portal APIs | ❌ not available / not built (see [docs/02](docs/02-source-feasibility.md)) |
 
-**Biggest limitation:** with no permitted automated access to amazon.in, prices and offers arrive
-only when you view a product page (one click in the extension), type them in, or import them.
+**Biggest limitation:** there's no permitted automated access to amazon.in. Prices and offers come
+from what you see: product pages (extension), pages you browse (opt-in observation), what you
+share or type into the Telegram bot, or imports. A product you never look at stays unpriced.
 
 ## Tests
 

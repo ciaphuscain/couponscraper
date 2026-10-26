@@ -2,9 +2,10 @@
 
 ## Known limitations (honest list)
 
-1. **No automatic amazon.in data.** Prices and offers arrive only from pages you view (extension),
-   manual entry or imports. A watched product you never revisit gets no new prices, so
-   price-drop alerts can't fire for it. This is a deliberate consequence of ADR-004.
+1. **No automatic amazon.in data.** Prices and offers arrive from what you see: product pages
+   (extension), listing pages you browse (opt-in observation), the Telegram bot, manual entry or
+   imports. A watched product that never appears in your browsing gets no new prices
+   (ADR-004/008).
 2. **Redemption is never auto-tested.** Whether an offer works is learned only from your
    Applied/Didn't-apply clicks.
 3. **Offer text parsing is regex-based.** It is accurate on the author-written development set
@@ -20,7 +21,13 @@
 9. **Not verified on real Windows hardware by hand.** CI runs the full Python suite and CLI smoke
    test on `windows-latest`. The Task Scheduler and Telegram steps are documented but were not
    executed in this environment.
-10. **Multi-buy offers ("buy 2, get 5% off") are not modelled.** The parser rejects them rather
+10. **The Telegram bot and the setup script's logon-task step are unverified against the real
+    services.** The bot is tested against a fake Bot API over HTTP. The setup script runs in Windows
+    CI, but without `-AutoStart`.
+11. **Cross-product offer inference is a heuristic.** A bank offer shown on other pages is
+    surfaced as "possibly applies". It is never confirmed or alerted, but it can be wrong for
+    excluded categories.
+12. **Multi-buy offers ("buy 2, get 5% off") are not modelled.** The parser rejects them rather
     than misreading them.
 
 ## Roadmap
@@ -43,12 +50,14 @@ docs/08-benchmarks.md), and **G** at full length (30 days on the laptop).
 
 | Dimension | Evidence | Current state | Weakness | Next improvement |
 |---|---|---|---|---|
-| Discovery | 4 source types; ingest 14k records/s; dedup replay creates 0 rows | Works with what reaches it | No automatic Amazon data | Creators API adapter if eligible; email import |
+| Discovery | 6 inputs (file, RSS, extension page, opt-in listing observation, Telegram, manual); cross-product inference; dedup replay creates 0 rows | Freshness follows browsing and phone use | No automatic Amazon data | Creators API adapter if eligible; email import |
 | Source legitimacy | docs/02 register; terms-gated RSS; robots.txt; no crawling | Conservative | In-browser capture is a grey area you must accept | Keep capture user-initiated |
 | Offer verification | 4 independent dimensions; derived lifecycle; provenance per source | Solid model | Priors are heuristics | Calibrate from your outcomes |
 | Eligibility | 3-valued rules; 20+ eligibility tests | Correct on tested cases | Rules from free text are limited to parsed fields | Rule editor in dashboard |
 | Savings optimisation | Worked example; brute-force property test; 0 double counting of cashback/gift cards | Exact, bounded | Pruning can (in theory) miss exotic combos past 3 per kind | Measure real offer-set sizes |
-| Redemption usability | E2E: 1 click to answer + steps; panel first render 258–298 ms locally | Good | No in-page coupon clicking (by design) | Experiment E with real purchases |
+| Redemption usability | E2E: 1 click to answer + steps; buy/wait verdict; phone flow via Telegram share; feedback by `/applied #` from alerts | Good on PC and phone | No in-page coupon clicking (by design) | Experiment E with real purchases |
+| Decision support | Evidence-named buy/wait advice; card insights counting only confirmed rules | New | Needs weeks of real history | Track advice accuracy vs later prices |
+| Operability | `doctor` (14 checks with fixes); idempotent `setup.ps1` run twice in Windows CI | Good | Logon-task path untested in CI | Manual check on the laptop |
 | Cashback tracking | State machine + audit trail; measured provider rates replace priors | Works | Manual status updates | Reminder alerts for overdue cashback |
 | Architecture | Modular monolith, 7 ADRs, I/O-free domain | Appropriate | Single process | — |
 | Coding | Stdlib only; typed; small modules | Readable | Hand-rolled HTTP routing | Revisit at ~30 endpoints |
@@ -56,7 +65,7 @@ docs/08-benchmarks.md), and **G** at full length (30 days on the laptop).
 | Performance | docs/08 measured numbers | Within targets on realistic data | Cold multi-product views | Evaluate only changed products |
 | Reliability | Backoff, auto-disable, stale-not-valid, leases, catch-up, retries | Good | Single process down = no alerts | Task Scheduler restart policy (documented) |
 | Security | 18-row threat model with tests | Strong for local use | Local malware can read the token | OS-level protections |
-| Testing | 120+ Python tests, 7 Node tests, E2E, CI on Windows | Broad | Not tested against live amazon.in pages | Capture real pages as fixtures (privately) |
+| Testing | 145 Python tests, 9 Node tests, E2E, CI on Windows (incl. setup script) | Broad | Not tested against live amazon.in pages | Capture real pages as fixtures (privately) |
 | Observability | Health page, source_runs, job_runs, outbox, JSON logs with redaction | Adequate | No metrics time series | Add counters to status API |
 | Documentation | 11 docs + ADRs, generated worked example | Matches implementation | Will drift | Keep generated tables generated |
 | Operational cost | ₹0; stdlib; local | Met | — | — |

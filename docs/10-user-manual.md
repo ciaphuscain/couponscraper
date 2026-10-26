@@ -13,12 +13,41 @@ Store.
    **Test connection**.
 5. Optional: tick "Automatically save price & offers" if you're comfortable with automatic
    capture (see docs/06 §Residual risks). Otherwise nothing is sent until you click Save.
+6. Optional but recommended: tick **"Record prices of my watched products wherever they appear"**.
+   Search results, deals, wishlist and cart pages you browse then keep your watched products'
+   prices fresh, which is what makes price alerts work. Only watched products are recorded, at most
+   hourly, and never on checkout, sign-in, account or payment pages.
 
 Permissions it asks for: storage (its own settings) and access to `127.0.0.1`/`localhost` (your
 backend). It runs only on amazon.in product pages, and reads nothing from checkout, your account
 or other sites.
 
 After `git pull`, click the reload icon on the extension card.
+
+## Fastest setup (Windows)
+
+```powershell
+git clone https://github.com/ciaphuscain/couponscraper.git; cd couponscraper
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -AutoStart
+```
+It installs everything into `.venv`, creates your data folder, starts CouponHunter at every logon,
+runs `couponhunter doctor` and prints your token plus the extension steps. Re-running it is safe.
+Run `couponhunter doctor` any time something seems off: each problem comes with the exact fix.
+
+## On your phone (Telegram companion)
+
+After setting up Telegram (docs/09 §4), keep `couponhunter serve` running and talk to your bot:
+
+| You do | It does |
+|---|---|
+| In the Amazon app: **Share → Telegram → your bot** | Starts tracking the product and replies with what it knows |
+| `/price B0XXXXXXXX 1299` | Records the price you see in the app, replies with the best plan |
+| `/offer B0XXXXXXXX 10% Instant Discount up to INR 1250 on HDFC Bank Credit Card` | Adds the offer exactly as the app shows it |
+| `/best <link or ASIN>` | Lowest realistic price, verdict (buy now / wait), steps, offer numbers |
+| `/applied 12` / `/failed 12` | Records whether offer #12 worked (numbers appear in replies and alerts) |
+| `/target B0XXXXXXXX 9000` · `/list` · `/stop` · `/cards` · `/status` | Self-explanatory |
+
+The bot ignores messages from anyone except your own chat.
 
 ## Everyday use
 
@@ -28,6 +57,9 @@ A panel appears bottom-right.
 
 * **Not tracked yet** → click **Track**. This saves the price and offers shown and adds the product
   to your watchlist. **Save price & offers** does the same without watching.
+* **Buy now / Wait / Fair price** is the verdict from your observed price history (it names its
+  evidence, e.g. "it was ₹9,400 on 27 Sep; 41 observations over 40 days"), your target, and
+  offers about to expire.
 * **Lowest realistic price** is what you'd pay at checkout using offers whose rules are fully
   known, with the payment method to use and a probability that every offer applies.
 * **Possibly ₹X if…** is a cheaper combination that depends on something unconfirmed (e.g.
@@ -46,6 +78,7 @@ A panel appears bottom-right.
 | Product page | Full answer, every feasible combination, offers that don't apply and why, price history verdict, record a price or a purchase |
 | Offers | Browse offers with state (active/stale/expired), source trust, confidence; add an offer you've seen; mark one invalid |
 | Savings & history | Purchases, cashback ledger (move records along pending → confirmed → paid), redemption attempts |
+| Cards | Which of your cards wins on most watched products, and which card you lack would have saved more (only counting confirmed rules) |
 | Health | Source status and errors, recent runs, scheduler jobs, alert outbox |
 | Settings | Prime/new-customer status, your payment methods, alert thresholds, quiet hours, stacking rules you've confirmed |
 
@@ -73,3 +106,4 @@ expected cashback and its provider. Update the cashback on the History page as i
 | `rules known` / `assumptions` | Whether a scenario relies on anything unconfirmed |
 | `synthetic test data` | Demo/fixture data. Never real |
 | `seen on amazon.in` | Price captured from a page you viewed |
+| `shown on N other product page(s)` | A bank/Amazon Pay offer seen on other products. It may apply here, so it is shown as "possibly", never as confirmed |

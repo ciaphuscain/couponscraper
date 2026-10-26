@@ -154,6 +154,11 @@ includes cashback in the price.
 | `POST /api/v1/captures` | `{asin, price, list_price?, title?, seller?, in_stock?, offers:[text \| {kind:"deal_price",title}], complete?, watch?}` | 201 Evaluation + `capture` counts |
 | `POST /api/v1/redemptions` | `{offer_id, asin?, outcome: applied\|failed\|not_shown\|partial, failure_reason?, observed_savings?, idempotency_key}` | 201 `{id}` (idempotent) |
 | `GET /api/v1/offers` | — | active offers with confidence and scope |
+| `GET /api/v1/watchlist/asins` | — | `{asins: [...]}` (for the opt-in observer) |
+| `POST /api/v1/observations` | `{items: [{asin, price}]}` (≤ 50) | 201 `{recorded, skipped}`; unwatched ASINs dropped; unchanged price ≤ 1/hour |
+
+Evaluations also include `advice` (`action`: buy_now/wait/fair/unknown, `headline`, `reasons`) and
+each offer's `seen_on_other_products` (cross-product inference, eligibility always unknown).
 
 All amounts are integer paise. Errors: `{"error": "..."}` with 400/401/404/413/421. Bodies are
 capped at 64 KiB. Scenario objects: see `service.scenario_json`; the extension validates them

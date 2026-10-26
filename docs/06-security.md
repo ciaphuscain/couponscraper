@@ -19,11 +19,15 @@ phishing page).
 | T11 | **Leaked notification token** | Token only in env vars; redacted from repr, errors (exception chain suppressed) and logs | Process environment is readable by the same OS user | `TelegramTests.test_token_never_in_error_or_repr`, `logs.redact` |
 | T12 | **Unauthorised dashboard access** | Loopback bind only (non-loopback refused); session cookie derived via HMAC (raw token never in a cookie) | Other OS users on the same machine with the token file | `config.load`, `test_login_sets_strict_httponly_cookie` |
 | T13 | **Sensitive shopping data exposure** | Wallet stores categories only; card-number-like strings rejected; no Amazon cookies, passwords, OTPs or session data are ever read; order refs optional | DB holds purchase history in plain SQLite (encrypt the disk; BitLocker) | `test_wallet_rejects_card_numbers` |
-| T14 | **Over-broad extension permissions** | `storage` + loopback host permission only; content script limited to 4 product-URL patterns; no `tabs`, `cookies`, `webRequest`, `scripting` or `<all_urls>` | — | `manifest.json` review; E2E asserts no panel on search pages |
+| T14 | **Over-broad extension permissions** | `storage` + loopback host permission only; the panel script runs on 4 product-URL patterns; the opt-in observer script runs on other amazon.in pages minus sensitive paths (T21); no `tabs`, `cookies`, `webRequest`, `scripting` or `<all_urls>` | — | `manifest.json` review; E2E asserts no panel on search pages |
 | T15 | **Affiliate / attribution tampering** | None performed. Product links are canonical `/dp/ASIN` without tags. Cashback portal journeys are shown as steps the user follows | — | `canonical_product_url` test |
 | T16 | **Dependency compromise** | Zero runtime dependencies. Playwright is CI-only and pinned | Python/Chrome themselves | `pyproject.toml` |
 | T17 | **Fake gift-card marketplaces** | Not integrated. A discounted balance is something you model yourself after buying from a legitimate seller | Your own purchase decision | — |
 | T18 | **Request floods / huge bodies** | 64 KiB body cap; 30 offers per capture; rule depth ≤16 | Local DoS is self-inflicted | `test_body_limit` |
+| T19 | **Strangers messaging the Telegram bot** | Only the configured chat id is processed; others get no reply (no oracle); long polling means no inbound port | Anyone with the bot token could read updates → token stays in env vars | `test_bot.py::test_strangers_are_ignored_silently` |
+| T20 | **Short-link resolution abused for SSRF** | Only https `amzn.in`/`amzn.to`/`a.co`; HEAD; redirects never followed; ≤2 shortener hops; result must parse as an amazon.in product URL; 5 s timeout | — | `ShortLinkTests` |
+| T21 | **Passive observation over-collecting browsing data** | Opt-in; watched ASINs only (enforced by the backend, unwatched never stored); hourly limit for unchanged prices; checkout/sign-in/account/payment/order paths excluded in the manifest; no panel/DOM changes on those pages | It runs on other amazon.in pages when enabled | `test_passive_observations_only_for_watched_and_rate_limited`, E2E |
+| T22 | **Replay/duplication after bot restart** | Persisted update offset; update id as idempotency key | — | `test_poll_persists_offset_and_survives_handler_crash` |
 
 ## Residual risks you need to decide on
 

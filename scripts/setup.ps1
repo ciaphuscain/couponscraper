@@ -20,16 +20,32 @@ Set-Location (Split-Path -Parent $PSScriptRoot)   # repository root
 function Step([string]$m) { Write-Host "==> $m" -ForegroundColor Cyan }
 
 # 1. Find a real Python 3.11+ (the 'py' launcher avoids the Microsoft Store 'python' stub).
+#    No pipes after native commands here: in Windows PowerShell 5.1, `| Select-Object -First 1`
+#    stops the native process early and leaves $LASTEXITCODE non-zero.
+function Get-PythonVersion([string]$exe, [string[]]$pre) {
+    try {
+        $out = & $exe @pre -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
+        if ($LASTEXITCODE -ne 0) { return $null }
+        $text = ("$out").Trim()
+        if ($text -match '^(\d+)\.(\d+)$') {
+            if ([int]$Matches[1] -gt 3 -or ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -ge 11)) { return $text }
+        }
+    } catch { }
+    return $null
+}
+
 Step "Finding Python 3.11+"
 $pyCmd = $null
-foreach ($cand in @(@("py", "-3"), @("python"))) {
-    if (Get-Command $cand[0] -ErrorAction SilentlyContinue) {
-        $args0 = @($cand | Select-Object -Skip 1)
-        try {
-            $ver = (& $cand[0] @args0 -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null | Select-Object -First 1)
-            if ($LASTEXITCODE -eq 0 -and $ver -match '^\d+\.\d+$' -and ([version]$ver -ge [version]"3.11")) { $pyCmd = $cand; break }
-        } catch { }
-    }
+$ver = $null
+$candidates = @(
+    @{ Exe = "py"; Pre = @("-3") },
+    @{ Exe = "python"; Pre = @() }
+)
+foreach ($c in $candidates) {
+    if (-not (Get-Command $c.Exe -ErrorAction SilentlyContinue)) { continue }
+    $v = Get-PythonVersion $c.Exe $c.Pre
+    Write-Host ("    {0} {1}: {2}" -f $c.Exe, ($c.Pre -join " "), $(if ($v) { $v } else { "not usable" }))
+    if ($v) { $pyCmd = @($c.Exe) + $c.Pre; $ver = $v; break }
 }
 if (-not $pyCmd) {
     throw "Python 3.11+ not found. Install it with:  winget install --id Python.Python.3.13 -e   then open a new PowerShell window and re-run this script."

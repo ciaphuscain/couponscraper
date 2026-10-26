@@ -3,7 +3,7 @@
 Run everything:
 
 ```powershell
-python -m unittest discover -s tests -t . -v      # 120+ Python tests, stdlib only
+python -m unittest discover -s tests -t . -v      # 145 Python tests, stdlib only
 node --test tests/extension/lib.test.js           # extension logic
 node tests/extension/e2e.js                       # real Chromium + extension + backend (needs Playwright)
 ```
@@ -20,7 +20,9 @@ CI (`.github/workflows/ci.yml`) runs the first two plus a CLI smoke test on Ubun
 | API / security | `test_web.py` (auth, CSRF, DNS rebinding, XSS, body cap, malformed input, real socket) |
 | Contract | `lib.test.js::validateEvaluation` ↔ `service.scenario_json` |
 | Extension unit | `tests/extension/lib.test.js` |
-| End-to-end | `tests/extension/e2e.js` (amazon.in served from a local fixture) |
+| End-to-end | `tests/extension/e2e.js` (amazon.in served from local fixtures: product page panel, opt-in listing observation off/on) |
+| Bot | `test_bot.py` (handler logic with a fake API; short-link resolution; HTTP wire test against a local fake Bot API) |
+| Operability | `test_doctor.py`; `scripts/setup.ps1` executed twice in Windows CI |
 | Performance / soak | `benchmarks/bench.py` |
 | Experiments | `benchmarks/experiments.py` |
 
