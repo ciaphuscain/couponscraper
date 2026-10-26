@@ -131,6 +131,39 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(len(n.sent), 1)
         self.assertTrue(n.sent[0].startswith("4 savings opportunities"))
 
+    def test_overdue_cashback_reminder_once_per_fortnight(self):
+        from datetime import timedelta as td
+        n = Recorder()
+        alerts.run_alerts(self.db, n, NOW)  # deal alert for the product (cooldown now active)
+        purchase = repo.record_purchase(self.db, self.pid, NOW, 10_000_00, 9_500_00)
+        rid = repo.create_cashback(self.db, "ExamplePortal", NOW, advertised=300_00, purchase_id=purchase)
+        self.assertEqual(alerts.cashback_reminders(self.db, NOW + td(days=89)), [])
+        t = NOW + td(days=91)
+        repo.record_price(self.db, self.pid, 10_000_00, t, "ext", "synthetic")
+        alerts.run_alerts(self.db, n, t)
+        reminders = [m for m in n.sent if "Cashback overdue" in m]
+        self.assertEqual(len(reminders), 1)
+        self.assertIn("₹300 from ExamplePortal", reminders[0])
+        self.assertIn("missing-cashback claim", reminders[0])
+        alerts.run_alerts(self.db, n, t + td(days=1))  # same fortnight: no repeat
+        self.assertEqual(len([m for m in n.sent if "Cashback overdue" in m]), 1)
+        alerts.run_alerts(self.db, n, t + td(days=15))  # next fortnight: one more nudge
+        self.assertEqual(len([m for m in n.sent if "Cashback overdue" in m]), 2)
+        repo.transition_cashback(self.db, rid, "pending", 300_00, t)
+        repo.transition_cashback(self.db, rid, "confirmed", 300_00, t)
+        repo.transition_cashback(self.db, rid, "paid", 300_00, t)
+        self.assertEqual(alerts.cashback_reminders(self.db, t + td(days=60)), [])  # paid: silence
+
+    def test_alert_precision(self):
+        from datetime import timedelta as td
+        alerts.run_alerts(self.db, Recorder(), NOW)
+        self.assertEqual((repo.alert_precision(self.db, NOW).sent, repo.alert_precision(self.db, NOW).acted), (1, 0))
+        oid = self.db.one("SELECT id FROM offers")[0]
+        repo.record_redemption(self.db, oid, None, "applied", NOW + td(days=2))  # e.g. Telegram /applied, no product
+        self.assertEqual(repo.alert_precision(self.db, NOW + td(days=3)).acted, 1)
+        self.assertEqual(repo.alert_precision(self.db, NOW + td(days=3)).precision_bp, 10_000)
+        self.assertEqual(repo.alert_precision(self.db, NOW + td(days=200)).sent, 0)  # outside the window
+
     def test_quiet_until(self):
         s = {"quiet_hours": {"start": "22:30", "end": "07:30", "utc_offset_minutes": 330}}
         self.assertIsNone(alerts.quiet_until(NOW, s))

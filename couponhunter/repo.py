@@ -44,6 +44,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "telegram_offset": 0,  # last processed Telegram update id + 1 (bot restart safety)
 }
 
+DEFAULT_CASHBACK_DAYS = 90
+
 CASHBACK_TRANSITIONS = {
     "expected": {"tracked", "pending", "rejected"},
     "tracked": {"pending", "confirmed", "rejected"},
@@ -383,6 +385,9 @@ def create_cashback(db: Database, provider: str, now: datetime, advertised: int,
                     expected_by: datetime | None = None, status: str = "expected") -> int:
     if status not in ("expected", "tracked"):
         raise InvalidTransition("new cashback records start as expected or tracked")
+    if expected_by is None:
+        # Assumption (docs/03 A8): bank and portal cashback typically settles within ~90 days.
+        expected_by = now + timedelta(days=DEFAULT_CASHBACK_DAYS)
     with db.tx() as c:
         rid = c.execute(
             """INSERT INTO cashback_records(provider, purchase_id, offer_id, order_ref, advertised, expected, status,
@@ -491,3 +496,35 @@ def watchlist_rows(db: Database) -> list[sqlite3.Row]:
 
 def product_url(asin: str) -> str:
     return canonical_product_url(asin)
+
+
+@dataclass
+class AlertPrecision:
+    window_days: int
+    sent: int
+    acted: int  # followed within 7 days by a purchase or an 'applied' redemption for that product
+
+    @property
+    def precision_bp(self) -> int | None:
+        return self.acted * 10_000 // self.sent if self.sent else None
+
+
+def alert_precision(db: Database, now: datetime, days: int = 90, follow_days: int = 7) -> AlertPrecision:
+    """Opportunity precision: share of deal alerts that led to a recorded purchase or a
+    successful redemption on the same product. Reminder alerts are excluded."""
+    row = db.one(
+        """SELECT COUNT(*) AS sent,
+                  SUM(EXISTS (SELECT 1 FROM purchases pu WHERE pu.product_id = a.product_id
+                                AND pu.purchased_at >= a.created_at
+                                AND pu.purchased_at <= strftime('%Y-%m-%dT%H:%M:%SZ', a.created_at, ?))
+                      OR EXISTS (SELECT 1 FROM redemption_attempts ra
+                                 LEFT JOIN offer_products op ON op.offer_id = ra.offer_id
+                                 WHERE ra.outcome = 'applied'
+                                   AND (ra.product_id = a.product_id OR op.asin = (SELECT asin FROM products WHERE id = a.product_id))
+                                   AND ra.attempted_at >= a.created_at
+                                   AND ra.attempted_at <= strftime('%Y-%m-%dT%H:%M:%SZ', a.created_at, ?))) AS acted
+           FROM alerts a
+           WHERE a.status = 'sent' AND a.product_id IS NOT NULL AND a.reason NOT LIKE 'cashback overdue%'
+             AND a.created_at >= ?""",
+        (f"+{follow_days} days", f"+{follow_days} days", iso(now - timedelta(days=days))))
+    return AlertPrecision(days, row["sent"] or 0, row["acted"] or 0)

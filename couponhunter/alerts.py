@@ -25,12 +25,13 @@ from .optimizer import Scenario
 
 MAX_ATTEMPTS = 5
 MIN_SUCCESS_BP = 5_000
-DOWNGRADE_WINDOW = timedelta(days=7)  # don't alert on combinations more likely to fail than work
+DOWNGRADE_WINDOW = timedelta(days=7)
+REMINDER_PREFIX = "cashback overdue"  # don't alert on combinations more likely to fail than work
 
 
 @dataclass
 class AlertDecision:
-    product_id: int
+    product_id: int | None
     reason: str
     dedup_key: str
     savings: int
@@ -148,18 +149,23 @@ def enqueue(db: Database, decisions: list[AlertDecision], now: datetime, setting
                 counts["duplicate"] += 1
                 continue
             status, next_at = "pending", iso(now)
-            recent = c.execute(
-                """SELECT savings FROM alerts WHERE product_id=? AND status IN ('sent','pending','deferred')
-                   AND created_at>=? ORDER BY created_at DESC LIMIT 1""",
-                (d.product_id, iso(now - cooldown)),
-            ).fetchone()
+            if d.reason.startswith(REMINDER_PREFIX):
+                # Reminders aren't deals: no cooldown or downgrade logic, only dedup + quiet hours.
+                recent = better_sent = None
+            else:
+                recent = c.execute(
+                    """SELECT savings FROM alerts WHERE product_id=? AND status IN ('sent','pending','deferred')
+                       AND created_at>=? AND reason NOT LIKE 'cashback overdue%' ORDER BY created_at DESC LIMIT 1""",
+                    (d.product_id, iso(now - cooldown)),
+                ).fetchone()
             # A worse deal than one we told the user about this week is not news
             # (typically the better offer just expired or went stale).
-            better_sent = c.execute(
-                """SELECT 1 FROM alerts WHERE product_id=? AND status IN ('sent','pending','deferred')
-                   AND created_at>=? AND savings>=? AND reason NOT LIKE 'at or below your target%' LIMIT 1""",
-                (d.product_id, iso(now - DOWNGRADE_WINDOW), d.savings),
-            ).fetchone()
+                better_sent = c.execute(
+                    """SELECT 1 FROM alerts WHERE product_id=? AND status IN ('sent','pending','deferred')
+                       AND created_at>=? AND savings>=? AND reason NOT LIKE 'at or below your target%'
+                       AND reason NOT LIKE 'cashback overdue%' LIMIT 1""",
+                    (d.product_id, iso(now - DOWNGRADE_WINDOW), d.savings),
+                ).fetchone()
             # Within cooldown, only a materially better deal gets through.
             if (recent is not None and d.savings < recent["savings"] + max(10_000, recent["savings"] // 10)) or (
                     better_sent is not None and not d.reason.startswith("at or below your target")):
@@ -218,9 +224,44 @@ def deliver(db: Database, notifier: Notifier, now: datetime, settings: dict[str,
     return counts
 
 
+CASHBACK_REMIND_EVERY = timedelta(days=14)
+
+
+def cashback_reminders(db: Database, now: datetime) -> list[AlertDecision]:
+    """Cashback past its expected date and not yet paid: nudge the owner to claim it.
+
+    Portals and banks typically accept missing-cashback claims only within a
+    window, so silence costs real money. One reminder per record per 14 days
+    overdue (dedup key includes the 14-day bucket and status).
+    """
+    out = []
+    rows = db.query(
+        """SELECT cr.*, pu.purchased_at, pu.product_id, p.title FROM cashback_records cr
+           LEFT JOIN purchases pu ON pu.id = cr.purchase_id LEFT JOIN products p ON p.id = pu.product_id
+           WHERE cr.status IN ('expected','tracked','pending','confirmed') AND cr.expected_by IS NOT NULL
+             AND cr.expected_by < ?""", (iso(now),))
+    for r in rows:
+        overdue = now - parse_iso(r["expected_by"])
+        bucket = int(overdue / CASHBACK_REMIND_EVERY)
+        amount = r["amount"] or r["expected"]
+        what = r["title"] or "your purchase"
+        action = ("Confirmed but not paid: check the payout/withdrawal page." if r["status"] == "confirmed"
+                  else "File a missing-cashback claim with the provider while their claim window is open, "
+                       "then update the record on the History page.")
+        text = "\n".join([
+            f"Cashback overdue: {fmt(amount)} from {r['provider']}",
+            f"For: {what}" + (f" (bought {r['purchased_at'][:10]})" if r["purchased_at"] else ""),
+            f"Status: {r['status']}, expected by {r['expected_by'][:10]} ({overdue.days} days ago)",
+            action,
+        ])
+        out.append(AlertDecision(r["product_id"], f"cashback overdue: {r['provider']}",
+                                 f"cashback:{r['id']}:{r['status']}:{bucket}", 0, text))
+    return out
+
+
 def run_alerts(db: Database, notifier: Notifier, now: datetime) -> dict[str, Any]:
     settings = repo.get_settings(db)
-    decisions = decide(db, now, settings)
+    decisions = decide(db, now, settings) + cashback_reminders(db, now)
     q = enqueue(db, decisions, now, settings)
     d = deliver(db, notifier, now, settings)
     return {"decided": len(decisions), **q, **d}

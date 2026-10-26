@@ -345,7 +345,11 @@ def history(ctx: Ctx) -> str:
             select("", "status", [(x, x) for x in nxt]), field("", "amount", placeholder="₹ amount")]), "Update",
             inline=True) if nxt else ""
         cb_rows.append([r["provider"], money(r["advertised"]), r["status"], money(r["amount"]), ago(r["updated_at"], ctx.now), ctl])
-    body = join([cards, tag("p", "Realised savings count only what you recorded paying and cashback marked paid. "
+    ap = repo.alert_precision(ctx.db, ctx.now)
+    precision = tag("p", (f"Alert precision (last {ap.window_days} days): {ap.acted} of {ap.sent} deal alerts were "
+                          f"followed within a week by a purchase or an offer that applied ({pct(ap.precision_bp)})."
+                          if ap.sent else "Alert precision: no deal alerts sent in the last 90 days yet."), class_="muted")
+    body = join([cards, precision, tag("p", "Realised savings count only what you recorded paying and cashback marked paid. "
                                  "Pending cashback is never included.", class_="muted"),
                  tag("h2", "Purchases"), table(["When", "Product", "Without offers", "Checkout", "Cash", "Saved"], purchases),
                  tag("h2", "Cashback tracking"), table(["Provider", "Advertised", "Status", "Amount", "Updated", ""], cb_rows),
