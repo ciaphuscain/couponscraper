@@ -45,7 +45,7 @@
 
 Experiments still to run with real data: **A** (source quality: needs real sources over weeks),
 **E** (user friction: time yourself with and without the extension; protocol in
-docs/08-benchmarks.md), and **G** at full length (30 days on the laptop).
+docs/08-benchmarks.md), and **G** in real time on the laptop (a 31-day *simulated* soak is done).
 
 ## Final scorecard
 
