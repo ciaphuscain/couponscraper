@@ -86,6 +86,8 @@ def check_offer(offer: Offer, product: ProductContext, user: UserProfile, now: d
             return no("Prime-only offer")
         if user.is_prime is None:
             unknown("Prime-only; your Prime status is not set")
+    if offer.seen_on_other_products:
+        unknown(f"shown on {offer.seen_on_other_products} other product page(s); not confirmed for this one")
     if offer.account_specific:
         unknown("targeted offer: applies only if Amazon shows it in your own account")
     if offer.one_time_use:

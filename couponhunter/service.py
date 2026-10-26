@@ -168,6 +168,7 @@ def offer_json(o, asins: list[str] | None = None) -> dict[str, Any]:
         "valid_until": repo.iso(o.valid_until), "lifecycle": o.lifecycle.value, "authenticity": o.authenticity.value,
         "confidence_bp": c.bp, "confidence_note": c.note, "new_customer_only": o.new_customer_only,
         "prime_only": o.prime_only, "account_specific": o.account_specific, "is_synthetic": o.is_synthetic,
+        "seen_on_other_products": o.seen_on_other_products,
         "asins": asins,
     }
 

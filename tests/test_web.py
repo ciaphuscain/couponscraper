@@ -137,6 +137,29 @@ class WebTests(unittest.TestCase):
         st, out, _ = self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "offers": []})
         self.assertEqual(out["best_confirmed"]["cash_cost"], 10_000_00)
 
+    def test_bank_offer_seen_elsewhere_is_possible_not_confirmed(self):
+        repo.set_setting(self.db, "wallet", [{"id": "h", "label": "HDFC CC", "type": "credit_card", "bank": "hdfc"}])
+        hdfc = "10% Instant Discount up to INR 750 on HDFC Bank Credit Card"
+        for a in ("B0OTHER001", "B0OTHER002"):
+            self.api("POST", "/api/v1/captures", {"asin": a, "price": 5_000_00, "offers": [hdfc, "Save ₹50 with coupon"]})
+        self.post_form("/actions/watch", {"url": "B0TESTASIN", "price": "10000"})  # manual price, no capture
+        ev = self.api("GET", "/api/v1/products/B0TESTASIN")[1]
+        self.assertEqual(ev["best_confirmed"]["cash_cost"], 10_000_00)
+        self.assertEqual(ev["best_possible"]["cash_cost"], 9_250_00)
+        self.assertTrue(any("2 other product page" in a for a in ev["best_possible"]["assumptions"]))
+        inferred = [o for o in ev["offers"] if o["seen_on_other_products"]]
+        self.assertEqual(len(inferred), 1)  # two sightings, one offer; product coupons never inferred
+        # Once this product's own page is captured without the bank offer, the page wins.
+        ev = self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "offers": []})[1]
+        self.assertEqual(ev["best_possible"]["cash_cost"], 10_000_00)
+
+    def test_inference_never_crosses_synthetic_boundary(self):
+        self.api("POST", "/api/v1/captures", {"asin": "B0OTHER001", "price": 5_000_00,
+                                              "offers": ["10% Instant Discount up to INR 750 on HDFC Bank Credit Card"]})
+        pid = repo.upsert_product(self.db, "B0DEMO0001", NOW, data_origin="synthetic")
+        self.assertEqual(repo.inferred_offers(self.db, "B0DEMO0001", NOW, []), [])
+        self.assertIsNotNone(pid)
+
     def test_unknown_product(self):
         st, out, _ = self.api("GET", "/api/v1/products/B0UNKNOWN1")
         self.assertEqual((st, out["tracked"]), (404, False))

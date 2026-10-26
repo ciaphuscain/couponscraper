@@ -144,6 +144,9 @@ class Offer:
     settlement_probability_bp: int | None = None
     source_text: str = ""
     is_synthetic: bool = False  # test fixture / demo data; shown as such in the UI
+    # >0 when this offer was observed on *other* product pages and is only
+    # inferred to possibly apply here (always eligibility-unknown).
+    seen_on_other_products: int = 0
 
 
 @dataclass(frozen=True)

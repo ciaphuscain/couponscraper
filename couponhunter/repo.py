@@ -250,7 +250,68 @@ def offers_for_asin(db: Database, asin: str, now: datetime) -> list[Offer]:
         """,
         (normalize_asin(asin), iso(now - timedelta(days=1))),
     )
-    return [_row_to_offer(r, now) for r in rows]
+    offers = [_row_to_offer(r, now) for r in rows]
+    return offers + inferred_offers(db, normalize_asin(asin), now, offers)
+
+
+INFERABLE_KINDS = ("bank_instant", "bank_cashback", "amazon_pay_cashback")
+INFER_FROM_DAYS = 7
+INFER_SUPPRESS_HOURS = 24
+
+
+def _economics_key(o: Offer) -> tuple:
+    pay = (tuple(sorted(o.payment.banks)), tuple(sorted(o.payment.instrument_types)),
+           tuple(sorted(o.payment.networks))) if o.payment else None
+    return (o.kind.value, o.discount_type.value, o.value, o.max_discount, o.min_order, pay)
+
+
+def inferred_offers(db: Database, asin: str, now: datetime, direct: list[Offer]) -> list[Offer]:
+    """Bank / Amazon Pay offers seen on *other* product pages, as 'possibly applies here'.
+
+    Issuer offers on amazon.in usually cover many products, so an offer shown on
+    three other pages is worth surfacing, but never as confirmed: eligibility is
+    UNKNOWN, so it only appears in 'possible' answers. Skipped when this product's
+    own page was captured recently (the page itself is better evidence) and never
+    crosses between synthetic and real data.
+    """
+    prod = db.one("SELECT id, data_origin FROM products WHERE asin=?", (asin,))
+    if prod is None:
+        return []
+    recent_capture = db.one(
+        "SELECT 1 FROM price_observations WHERE product_id=? AND source='extension' AND observed_at>=? LIMIT 1",
+        (prod["id"], iso(now - timedelta(hours=INFER_SUPPRESS_HOURS))))
+    if recent_capture:
+        return []
+    synthetic_target = prod["data_origin"] == "synthetic"
+    rows = db.query(
+        _OFFER_SELECT + f"""
+        WHERE o.kind IN ({",".join("?" * len(INFERABLE_KINDS))})
+          AND o.withdrawn_at IS NULL AND o.user_flag IS NULL
+          AND (o.valid_until IS NULL OR o.valid_until > ?)
+          AND o.last_confirmed_at >= ?
+          AND EXISTS (SELECT 1 FROM offer_products op WHERE op.offer_id = o.id)
+          AND NOT EXISTS (SELECT 1 FROM offer_products op WHERE op.offer_id = o.id AND op.asin = ?)
+          AND EXISTS (SELECT 1 FROM offer_sources os WHERE os.offer_id = o.id AND os.evidence_type = 'user_observed')
+          AND (o.data_origin = 'synthetic') = ?
+        ORDER BY o.last_confirmed_at DESC""",
+        (*INFERABLE_KINDS, iso(now), iso(now - timedelta(days=INFER_FROM_DAYS)), asin, int(synthetic_target)))
+    have = {_economics_key(o) for o in direct}
+    groups: dict[tuple, tuple[Offer, set[str]]] = {}
+    for r in rows:
+        o = _row_to_offer(r, now)
+        k = _economics_key(o)
+        if k in have:
+            continue
+        asins = {x["asin"] for x in db.query("SELECT asin FROM offer_products WHERE offer_id=?", (r["id"],))}
+        if k in groups:
+            groups[k][1].update(asins)
+        else:
+            groups[k] = (o, asins)
+    out = []
+    for o, asins in groups.values():
+        o.seen_on_other_products = len(asins)
+        out.append(o)
+    return out
 
 
 def all_offers(db: Database, now: datetime, include_expired: bool = False, limit: int = 500) -> list[tuple[Offer, list[str]]]:
