@@ -123,6 +123,17 @@ class TextParserTests(unittest.TestCase):
         n = normalize_record({"text": "Flat ₹100 off on first order for selected customers. Use code NEW100"})
         self.assertTrue(n.new_customer_only and n.account_specific)
 
+    def test_expiry_extraction(self):
+        from couponhunter.normalize import extract_expiry
+        cases = {"Valid till 31st Oct 2026": "2026-10-31", "offer ends on October 5, 2026": "2026-10-05",
+                 "valid until 31/10/2026": "2026-10-31", "Expires: 2026-11-02": "2026-11-02",
+                 "Valid till 1st Nov. 2026 11:59 PM": "2026-11-01",
+                 "up to ₹750 on HDFC": None, "valid till 31 Oct": None, "till 31/02/2026": None}
+        for text, want in cases.items():
+            self.assertEqual(extract_expiry(text), want, text)
+        n = normalize_record({"text": "Use code SAVE200 to get ₹200 off. Valid till 31st Oct 2026"})
+        self.assertEqual(n.valid_until, datetime(2026, 10, 31, 18, 29, 59, tzinfo=timezone.utc))
+
     def test_unparseable(self):
         for t in ["Great deals today!", "Bank offer 10%"]:
             with self.assertRaises(NormalizationError, msg=t):

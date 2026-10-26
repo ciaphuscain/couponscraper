@@ -135,6 +135,7 @@ def run_source(db: Database, source_id: str, now: datetime, adapter_obj: Any = N
         _record_failure(db, row, run_id, now, SourceError(f"adapter crashed: {e!r}", kind="transient"), stats)
         return stats
 
+    stats.warnings.extend(result.warnings)
     if row["schema_fingerprint"] and result.schema_fingerprint and row["schema_fingerprint"] != result.schema_fingerprint:
         stats.warnings.append("source record shape changed since last run")
     with db.tx() as c:

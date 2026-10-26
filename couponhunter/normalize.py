@@ -343,6 +343,40 @@ _MIN = re.compile(
 _CODE = re.compile(r"\b(?:use|apply|with)?\s*(?:promo\s*)?code[:\s]+([A-Z0-9][A-Z0-9_-]{2,31})\b")
 
 
+_MONTHS = {m: i for i, m in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], start=1)}
+_EXPIRY_LEAD = r"(?:valid\s+(?:till|until|up\s*to|upto|through)|offer\s+(?:ends|valid\s+till)(?:\s+on)?|ends\s+on|expires(?:\s+on)?|till|until)\s*:?\s*"
+_D_MON_Y = re.compile(_EXPIRY_LEAD + r"(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?,?\s+(20\d{2})", re.I)
+_MON_D_Y = re.compile(_EXPIRY_LEAD + r"([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})", re.I)
+_NUMERIC = re.compile(_EXPIRY_LEAD + r"(\d{1,2})[/.-](\d{1,2})[/.-](20\d{2})\b", re.I)  # Indian dd/mm/yyyy
+_ISO = re.compile(_EXPIRY_LEAD + r"(20\d{2})-(\d{2})-(\d{2})\b", re.I)
+
+
+def extract_expiry(text: str) -> str | None:
+    """'valid till 31st Oct 2026' -> '2026-10-31'. Only dates with an explicit year
+    after an expiry phrase; anything ambiguous returns None rather than a guess."""
+    import datetime as _dt
+
+    for pat, order in ((_ISO, "ymd"), (_D_MON_Y, "dmy_name"), (_MON_D_Y, "mdy_name"), (_NUMERIC, "dmy")):
+        m = pat.search(text)
+        if not m:
+            continue
+        g = m.groups()
+        try:
+            if order == "ymd":
+                y, mo, d = int(g[0]), int(g[1]), int(g[2])
+            elif order == "dmy_name":
+                d, mo, y = int(g[0]), _MONTHS.get(g[1][:3].lower(), 0), int(g[2])
+            elif order == "mdy_name":
+                mo, d, y = _MONTHS.get(g[0][:3].lower(), 0), int(g[1]), int(g[2])
+            else:
+                d, mo, y = int(g[0]), int(g[1]), int(g[2])
+            return _dt.date(y, mo, d).isoformat()
+        except ValueError:
+            continue
+    return None
+
+
 @dataclass
 class ParsedText:
     fields: dict[str, Any]
@@ -446,6 +480,9 @@ def parse_offer_text(text: str) -> ParsedText:
         warnings.append("non-EMI transactions only")
     if f.get("discount", "").endswith("%") and "max_discount" not in f:
         score -= 1_000
+    expiry = extract_expiry(t)
+    if expiry:
+        f["valid_until"] = expiry
     return ParsedText(fields=f, warnings=warnings, confidence_bp=max(score, 0))
 
 

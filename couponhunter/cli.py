@@ -87,6 +87,20 @@ def cmd_import(cfg, a):
     print(json.dumps(st.__dict__, indent=1, ensure_ascii=False))
 
 
+def cmd_import_email(cfg, a):
+    db, now = _db(cfg), utcnow()
+    path = Path(a.path).resolve()
+    sid = a.source_id or f"email:{path.stem}"
+    ingest.register_source(db, sid, "email_import", a.name or f"Emails: {path.name}",
+                           {"path": str(path), "max_age_days": a.max_age_days}, now, min_interval_s=0,
+                           stale_after_h=24 * 30)
+    st = ingest.run_source(db, sid, now, force=True)
+    print(f"{st.status}: {st.created} new offer(s), {st.updated + st.duplicates} already known, "
+          f"{st.rejected} not understood")
+    for w in (st.errors + st.warnings)[:10]:
+        print(f"  - {w}")
+
+
 def cmd_add_feed(cfg, a):
     db, now = _db(cfg), utcnow()
     if not a.terms_note:
@@ -259,6 +273,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--evidence", default="user_entered", choices=["user_entered", "official_page", "feed_listing"])
     s.add_argument("--append", action="store_true", help="don't treat the file as the complete list for this source")
     s.set_defaults(fn=cmd_import)
+
+    s = sub.add_parser("import-email", help="import offers from saved emails (.eml, .mbox, or a folder)")
+    s.add_argument("path")
+    s.add_argument("--source-id")
+    s.add_argument("--name")
+    s.add_argument("--max-age-days", type=int, default=30,
+                   help="skip offers from older emails unless they state a future expiry (default 30)")
+    s.set_defaults(fn=cmd_import_email)
 
     s = sub.add_parser("add-feed", help="register an RSS/Atom deal feed you are permitted to read")
     s.add_argument("id")
