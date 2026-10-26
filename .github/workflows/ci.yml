@@ -34,6 +34,23 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           .\.venv\Scripts\couponhunter.exe evaluate B0DEMO0001
           .\.venv\Scripts\couponhunter.exe doctor --offline
+      - name: Windows logon task (-AutoStart) starts the server
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          .\scripts\setup.ps1 -AutoStart
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ScheduledTask -TaskName CouponHunter | Format-List TaskName, State
+          $ok = $false
+          foreach ($i in 1..30) {
+            try { if ((Invoke-RestMethod http://127.0.0.1:8765/healthz -TimeoutSec 2).ok) { $ok = $true; break } } catch { }
+            Start-Sleep -Seconds 1
+          }
+          Get-ScheduledTask -TaskName CouponHunter | Get-ScheduledTaskInfo | Format-List LastRunTime, LastTaskResult
+          .\scripts\setup.ps1 -AutoStart     # re-run must leave the task alone
+          Stop-ScheduledTask -TaskName CouponHunter
+          Unregister-ScheduledTask -TaskName CouponHunter -Confirm:$false
+          if (-not $ok) { Write-Error "server started by the logon task never answered /healthz"; exit 1 }
       - name: CLI smoke test
         shell: bash
         run: |
