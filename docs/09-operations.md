@@ -78,9 +78,6 @@ Get-ScheduledTask CouponHunter | Get-ScheduledTaskInfo     # LastTaskResult 2670
 **Updating later:** `git pull`, then re-run `.\scripts\setup.ps1`. It stops the task, updates, and
 restarts it. If you started the server by hand, stop it first (Ctrl+C).
 
-```powershell
-```
-
 To keep the laptop awake for alerts, set *Settings → System → Power → Sleep* to "Never" when
 plugged in.
 
