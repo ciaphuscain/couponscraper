@@ -91,6 +91,8 @@ def render(ev: service.Evaluation, s: Scenario, reason: str, by_id: dict[str, An
         lines.append(f"⚠ {a}")
     if s.steps:
         lines.append("Steps: " + " → ".join(s.steps[:4]))
+    if ev.advice and ev.advice.action in ("buy_now", "wait"):
+        lines.append(f"Verdict: {'Buy now' if ev.advice.action == 'buy_now' else 'Wait'}: {ev.advice.headline}")
     if ev.verdict and ev.verdict.caveats:
         lines.append("Note: " + ev.verdict.caveats[0])
     if any(by_id[a.offer_id].is_synthetic for a in s.applied if a.offer_id in by_id):

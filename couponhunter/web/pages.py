@@ -102,6 +102,41 @@ def _answer(s: Scenario | None, possible: Scenario, baseline: Scenario) -> Raw:
     return join(parts)
 
 
+ADVICE_KIND = {"buy_now": "ok", "wait": "warn", "fair": "", "unknown": ""}
+ADVICE_LABEL = {"buy_now": "Buy now", "wait": "Wait", "fair": "Fair price", "unknown": "Not enough data"}
+
+
+def advice_box(a) -> Raw:
+    return Raw(f'<div class="advice {esc(a.action)}">') + badge(ADVICE_LABEL[a.action], ADVICE_KIND[a.action]) + \
+        tag("strong", " " + a.headline) + (tag("span", " · " + "; ".join(a.reasons), class_="muted") if a.reasons else "") + \
+        Raw("</div>")
+
+
+def sparkline(points: list[tuple[datetime, int]], w: int = 560, h: int = 90) -> Raw:
+    """Server-rendered SVG (no script, CSP-safe). Colours come from CSS classes."""
+    if len(points) < 2:
+        return Raw("")
+    t0, t1 = points[0][0].timestamp(), points[-1][0].timestamp()
+    lo, hi = min(p for _, p in points), max(p for _, p in points)
+    span_t, span_p = max(t1 - t0, 1), max(hi - lo, 1)
+    pad = 6
+
+    def xy(t, v):
+        return (pad + (t.timestamp() - t0) / span_t * (w - 2 * pad), h - pad - (v - lo) / span_p * (h - 2 * pad))
+
+    pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in (xy(t, v) for t, v in points))
+    mx, my = xy(*min(points, key=lambda q: (q[1], -q[0].timestamp())))
+    cx, cy = xy(*points[-1])
+    label = f"Price from {money(points[0][1])} to {money(points[-1][1])}; low {money(lo)}, high {money(hi)}"
+    return Raw(
+        f'<figure class="spark"><svg viewBox="0 0 {w} {h}" role="img" aria-label="{esc(label)}" preserveAspectRatio="none">'
+        f'<polyline class="line" points="{pts}" fill="none" stroke-width="2"/>'
+        f'<circle class="low" cx="{mx:.1f}" cy="{my:.1f}" r="4"/><circle class="now" cx="{cx:.1f}" cy="{cy:.1f}" r="4"/>'
+        f'</svg><figcaption class="muted">{esc(label)} · <span class="k-now">●</span> now '
+        f'<span class="k-low">●</span> lowest</figcaption></figure>'
+    )
+
+
 def overview(ctx: Ctx) -> str:
     rows = repo.watchlist_rows(ctx.db)
     settings = repo.get_settings(ctx.db)
@@ -236,6 +271,8 @@ def product(ctx: Ctx, asin: str) -> str:
         body.append(tag("p", join([f"Observed price {money(r.product.price)} ", origin_badge(ev.price_origin), " ",
                                    ago(repo.iso(r.product.price_observed_at), ctx.now), " ",
                                    badge("stale: refresh before buying", "warn") if r.product.price_is_stale else ""])))
+        if ev.advice:
+            body.append(advice_box(ev.advice))
         body.append(_answer(r.best_confirmed, r.best_possible, r.baseline))
         for n in r.notes:
             body.append(tag("p", n, class_="muted"))
@@ -248,6 +285,7 @@ def product(ctx: Ctx, asin: str) -> str:
         st = ev.stats
         if st and st.count:
             body.append(tag("h2", "Price history"))
+            body.append(sparkline([(repo.parse_iso(h["observed_at"]), h["price"]) for h in repo.price_history(ctx.db, p["id"])]))
             body.append(table(["Observations", "Days covered", "Min", "Median", "Max", "7-day trend"],
                               [[st.count, st.coverage_days, money(st.minimum), money(st.median), money(st.maximum),
                                 pct(st.trend_7d_bp)]]))

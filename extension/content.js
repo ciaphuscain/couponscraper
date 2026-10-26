@@ -19,7 +19,7 @@
     .h{display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:6px}
     .big{font-size:20px;font-weight:700}.m{color:#6b6b66}.w{color:#9a5b00}.e{color:#a12a2a}
     button{font:inherit;border:1px solid #1f6f50;background:#1f6f50;color:#fff;border-radius:6px;padding:3px 8px;cursor:pointer;margin:2px 4px 2px 0}
-    button.s{background:#fff;color:#1f6f50}.o{border-top:1px solid #eee;padding:6px 0}.min{width:auto;padding:6px 10px;cursor:pointer}
+    button.s{background:#fff;color:#1f6f50}.o{border-top:1px solid #eee;padding:6px 0}.min{width:auto;padding:6px 10px;cursor:pointer}.ok{color:#1f6f50;font-weight:600}
     ol,ul{margin:4px 0;padding-left:18px}.syn{color:#5b3fa0;font-weight:600}`;
   root.appendChild(style);
   const panel = document.createElement("div");
@@ -81,6 +81,11 @@
     }
     const best = d.best_confirmed || d.baseline;
     if (d.offers.some((o) => o.is_synthetic)) panel.appendChild(el("div", "Includes SYNTHETIC demo offers", "syn"));
+    const adv = d.advice;
+    if (adv && typeof adv.headline === "string" && ["buy_now", "wait", "fair"].includes(adv.action)) {
+      const label = { buy_now: "Buy now", wait: "Wait", fair: "Fair price" }[adv.action];
+      panel.appendChild(el("div", `${label}: ${adv.headline}`, adv.action === "wait" ? "w" : adv.action === "buy_now" ? "ok" : "m"));
+    }
     panel.appendChild(el("div", "Lowest realistic price", "m"));
     panel.appendChild(el("div", L.formatPaise(best.cash_cost), "big"));
     const facts = [];

@@ -10,7 +10,7 @@ from couponhunter.amazon import InvalidAmazonURL, canonical_product_url, extract
 from couponhunter.domain import Basis, DiscountType, OfferKind
 from couponhunter.money import fmt, parse_inr, percent_of, rupees
 from couponhunter.normalize import NormalizationError, normalize_record, parse_offer_text, safe_redemption_url
-from couponhunter.pricing import Observation, compute_stats, judge_price
+from couponhunter.pricing import Observation, buy_advice, compute_stats, judge_price
 from couponhunter.sources import SourceError
 from couponhunter.sources.http import HttpClient
 from couponhunter.sources.rss import RssAdapter
@@ -186,6 +186,42 @@ class PricingTests(unittest.TestCase):
     def test_pre_sale_inflation(self):
         s = compute_stats(self.obs([1000, 1000, 1000, 1000, 1300, 1300, 1050], days_apart=2), self.NOW)
         self.assertTrue(s.raised_recently)
+
+
+class AdviceTests(unittest.TestCase):
+    NOW = datetime(2026, 10, 25, tzinfo=timezone.utc)
+
+    def stats(self, prices):
+        obs = [Observation(p, self.NOW - timedelta(days=2 * (len(prices) - 1 - i))) for i, p in enumerate(prices)]
+        return compute_stats(obs, self.NOW)
+
+    def advise(self, prices, cash, **kw):
+        st = self.stats(prices)
+        return buy_advice(st, judge_price(st, cash), cash, self.NOW, **kw)
+
+    def test_wait_names_the_evidence(self):
+        a = self.advise([900, 1000, 1000, 1000, 1000, 1000, 1000, 1050, 1050], 1050)
+        self.assertEqual(a.action, "wait")
+        self.assertTrue(any("was ₹9" in r for r in a.reasons), a.reasons)
+        self.assertTrue(any("9 observations over 16 days" in r for r in a.reasons))
+
+    def test_buy_on_genuine_low(self):
+        self.assertEqual(self.advise([1000] * 10 + [880], 880).action, "buy_now")
+
+    def test_target_and_expiring_offer_override(self):
+        self.assertEqual(self.advise([1000], 900, target=950).action, "buy_now")
+        a = self.advise([1000] * 8, 950, expiring_saving=50, expiring_hours=10)
+        self.assertEqual(a.action, "buy_now")
+        self.assertIn("end in 10h", a.headline)
+        # expiring offer on an inflated price is not a reason to buy
+        self.assertNotEqual(self.advise([1000] * 8 + [1300], 1250, expiring_saving=50, expiring_hours=10).action,
+                            "buy_now")
+
+    def test_unknown_with_little_history(self):
+        self.assertEqual(self.advise([1000, 990], 990).action, "unknown")
+
+    def test_fair(self):
+        self.assertEqual(self.advise([1000, 1010, 990, 1000, 1005, 995, 1000], 1000).action, "fair")
 
 
 class FakeOpener:

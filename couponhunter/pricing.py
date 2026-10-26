@@ -32,6 +32,7 @@ class PriceStats:
     trend_7d_bp: int | None  # change of current vs. median of the previous 7 days, basis points
     volatility_bp: int | None  # coefficient of variation
     raised_recently: bool  # price went up >=10% within the last 14 days (pre-sale inflation pattern)
+    minimum_at: datetime | None = None
 
 
 @dataclass
@@ -70,6 +71,7 @@ def compute_stats(obs: list[Observation], now: datetime) -> PriceStats:
         count=len(prices), coverage_days=round(cov, 1), current=cur, minimum=min(prices),
         median=int(statistics.median(prices)), p25=int(q[0]) if q else None, maximum=max(prices),
         trend_7d_bp=int(trend) if trend is not None else None, volatility_bp=vol, raised_recently=raised,
+        minimum_at=min(obs, key=lambda o: (o.price, -o.observed_at.timestamp())).observed_at,
     )
 
 
@@ -103,3 +105,45 @@ def judge_price(stats: PriceStats, effective_price: int, list_price: int | None 
     if not v.is_good_deal and below_median_bp < 0:
         v.caveats.append("effective price is above the median observed price")
     return v
+
+
+@dataclass
+class Advice:
+    action: str  # "buy_now" | "wait" | "fair" | "unknown"
+    headline: str
+    reasons: list[str] = field(default_factory=list)
+
+
+def buy_advice(stats: PriceStats, verdict: DealVerdict, cash_cost: int, now: datetime,
+               target: int | None = None, expiring_saving: int = 0, expiring_hours: float | None = None) -> Advice:
+    """Buy now, wait, or fair price, using only evidence we hold.
+
+    Every reason names its evidence (observation count, days covered, dates),
+    so 'wait' never rests on a hunch. With too little history the advice is
+    'unknown' unless a target or an expiring offer decides it.
+    """
+    from .money import fmt
+
+    reasons: list[str] = []
+    if target is not None and cash_cost <= target:
+        return Advice("buy_now", f"At or below your target {fmt(target)}", [f"you'd pay {fmt(cash_cost)}"])
+    if expiring_saving and expiring_hours is not None and expiring_hours < 48 and (
+            stats.median is None or cash_cost <= stats.median):
+        return Advice("buy_now", f"{fmt(expiring_saving)} of offers end in {max(expiring_hours, 0):.0f}h",
+                      ["the price is not above its typical level"] if stats.median else [])
+    if verdict.is_good_deal:
+        return Advice("buy_now", "Genuinely low price", list(verdict.reasons))
+    if stats.count < MIN_OBS_FOR_CLAIMS or stats.median is None or stats.minimum is None:
+        return Advice("unknown", "Not enough price history to judge",
+                      [f"{stats.count} observation(s); save the page on a few more visits"])
+    span = f"{stats.count} observations over {stats.coverage_days:.0f} days"
+    if stats.raised_recently:
+        reasons.append("the price was raised in the last 14 days")
+    above_min_bp = (cash_cost - stats.minimum) * 10_000 // stats.minimum
+    if cash_cost > stats.median and above_min_bp >= 500:
+        when = stats.minimum_at.strftime("%d %b") if stats.minimum_at else "earlier"
+        reasons.append(f"it was {fmt(stats.minimum)} on {when} ({above_min_bp / 100:.0f}% lower)")
+        return Advice("wait", "Currently above its typical price", reasons + [span])
+    if reasons:
+        return Advice("wait", "Recently raised", reasons + [span])
+    return Advice("fair", "Typical price", [f"median {fmt(stats.median)}", span])

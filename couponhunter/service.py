@@ -17,7 +17,7 @@ from .domain import OfferKind
 from .eligibility import describe_payment
 from .money import fmt
 from .optimizer import OptimizationResult, Scenario, optimize
-from .pricing import DealVerdict, Observation, PriceStats, compute_stats, judge_price
+from .pricing import Advice, DealVerdict, Observation, PriceStats, buy_advice, compute_stats, judge_price
 from .verification import offer_confidence
 
 
@@ -32,6 +32,7 @@ class Evaluation:
     price_origin: str | None
     list_price: int | None
     offers: list = field(default_factory=list)
+    advice: Advice | None = None
 
 
 _CACHE: OrderedDict[tuple, Evaluation] = OrderedDict()
@@ -88,8 +89,17 @@ def _evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] |
     last = hist[-1] if hist else None
     best = result.best_confirmed or result.baseline
     verdict = judge_price(stats, best.cash_cost, last["list_price"] if last else None)
+    by_id = {o.id: o for o in offers}
+    expiring = [(by_id[a.offer_id], a.amount) for a in best.applied
+                if not a.deferred and by_id[a.offer_id].valid_until is not None]
+    soonest = min(expiring, key=lambda x: x[0].valid_until) if expiring else None
+    w = db.one("SELECT target_price FROM watchlist WHERE product_id=?", (p["id"],))
+    advice = buy_advice(
+        stats, verdict, best.cash_cost, now, target=w["target_price"] if w else None,
+        expiring_saving=soonest[1] if soonest else 0,
+        expiring_hours=(soonest[0].valid_until - now).total_seconds() / 3600 if soonest else None)
     return Evaluation(p["asin"], p["title"], True, result, stats, verdict,
-                      last["data_origin"] if last else None, last["list_price"] if last else None, offers)
+                      last["data_origin"] if last else None, last["list_price"] if last else None, offers, advice)
 
 
 def scenario_json(s: Scenario, offers_by_id: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -153,6 +163,7 @@ def evaluation_json(ev: Evaluation, db: Database, now: datetime, max_scenarios: 
         "notes": r.notes,
         "price_stats": asdict(ev.stats) if ev.stats else None,
         "deal_verdict": asdict(ev.verdict) if ev.verdict else None,
+        "advice": asdict(ev.advice) if ev.advice else None,
     })
     out["offers"] = [offer_json(o) for o in ev.offers]
     return out
