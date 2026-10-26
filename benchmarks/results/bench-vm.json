@@ -5,109 +5,152 @@
   "os": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
   "cpu_count": 4,
   "machine": "x86_64",
-  "date": "2026-10-25T15:22:05+00:00"
+  "date": "2026-10-25T15:34:04+00:00"
  },
  "bench": {
-  "normalize_records_per_s": 57885,
+  "normalize_records_per_s": 55164,
   "ingest_first_run": {
-   "records": 2000,
-   "created": 848,
-   "dup_in_listing": 1152,
-   "seconds": 0.172,
-   "records_per_s": 11607
+   "records": 4000,
+   "created": 1456,
+   "dup_in_listing": 2544,
+   "seconds": 0.279,
+   "records_per_s": 14321
   },
   "ingest_replay_dedup": {
    "created": 0,
-   "duplicates": 2000,
-   "seconds": 0.23,
-   "offer_rows_after": 848
+   "duplicates": 4000,
+   "seconds": 0.288,
+   "offer_rows_after": 1456
   },
   "offers_for_asin_lookup": {
-   "candidate_offers": 138,
+   "candidate_offers": 139,
    "n": 50,
-   "p50_ms": 4.294,
-   "p95_ms": 8.278,
-   "max_ms": 9.148
+   "p50_ms": 7.669,
+   "p95_ms": 8.202,
+   "max_ms": 9.941
   },
   "price_history_query_10k_rows": {
    "n": 30,
-   "p50_ms": 27.327,
-   "p95_ms": 32.916,
-   "max_ms": 34.082
+   "p50_ms": 15.953,
+   "p95_ms": 31.662,
+   "max_ms": 32.782
   },
-  "evaluate_product_10k_history": {
+  "evaluate_product_10k_history_cold": {
    "n": 30,
-   "p50_ms": 229.537,
-   "p95_ms": 327.039,
-   "max_ms": 413.549
+   "p50_ms": 247.695,
+   "p95_ms": 307.843,
+   "max_ms": 326.52
   },
-  "api_product_lookup": {
-   "candidate_offers": 133,
+  "api_product_lookup_cold": {
+   "candidate_offers": 137,
    "n": 50,
-   "p50_ms": 28.181,
-   "p95_ms": 44.495,
-   "max_ms": 48.103
+   "p50_ms": 141.124,
+   "p95_ms": 170.377,
+   "max_ms": 196.147
   },
-  "dashboard_watchlist_100_products": {
+  "stress_watchlist_100_products_cold": {
+   "n": 2,
+   "p50_ms": 16854.28,
+   "p95_ms": 17090.64,
+   "max_ms": 17116.902
+  },
+  "stress_watchlist_100_products_warm": {
    "n": 5,
-   "p50_ms": 10141.366,
-   "p95_ms": 10574.956,
-   "max_ms": 10658.593
+   "p50_ms": 5.848,
+   "p95_ms": 6.367,
+   "max_ms": 6.478
   },
-  "alert_decide_100_watched": {
-   "seconds": 10.248,
-   "decisions": 100
+  "stress_alert_decide_100_watched": {
+   "seconds": 17.917,
+   "decisions": 0
   },
-  "db_size_mb": 2.48,
+  "db_size_mb": 2.81,
+  "realistic": {
+   "candidate_offers_per_product": 27,
+   "api_product_lookup_cold": {
+    "n": 50,
+    "p50_ms": 14.968,
+    "p95_ms": 26.018,
+    "max_ms": 51.381
+   },
+   "api_product_lookup_warm": {
+    "n": 50,
+    "p50_ms": 0.622,
+    "p95_ms": 0.818,
+    "max_ms": 0.903
+   },
+   "watchlist_page_cold": {
+    "n": 3,
+    "p50_ms": 1475.269,
+    "p95_ms": 1490.829,
+    "max_ms": 1492.558
+   },
+   "watchlist_page_warm": {
+    "n": 10,
+    "p50_ms": 5.87,
+    "p95_ms": 6.231,
+    "max_ms": 6.255
+   },
+   "overview_page_warm": {
+    "n": 10,
+    "p50_ms": 1.528,
+    "p95_ms": 2.326,
+    "max_ms": 2.555
+   },
+   "alert_decide_cold": {
+    "seconds": 1.349,
+    "decisions": 1
+   }
+  },
   "optimize_6_offers": {
    "scenarios": 80,
    "n": 20,
-   "p50_ms": 2.433,
-   "p95_ms": 2.519,
-   "max_ms": 2.55
+   "p50_ms": 2.126,
+   "p95_ms": 2.554,
+   "max_ms": 2.556
   },
   "optimize_12_offers": {
    "scenarios": 567,
    "n": 20,
-   "p50_ms": 21.391,
-   "p95_ms": 23.994,
-   "max_ms": 26.868
+   "p50_ms": 20.223,
+   "p95_ms": 28.538,
+   "max_ms": 68.873
   },
   "optimize_24_offers": {
    "scenarios": 2304,
    "n": 20,
-   "p50_ms": 93.252,
-   "p95_ms": 136.898,
-   "max_ms": 153.251
+   "p50_ms": 98.749,
+   "p95_ms": 118.132,
+   "max_ms": 160.171
   },
   "optimize_60_offers": {
    "scenarios": 2304,
    "n": 5,
-   "p50_ms": 95.293,
-   "p95_ms": 111.654,
-   "max_ms": 115.261
+   "p50_ms": 106.924,
+   "p95_ms": 142.563,
+   "max_ms": 144.159
   }
  },
  "soak": {
-  "cycles": 200,
-  "simulated_days": 2.1,
+  "cycles": 600,
+  "simulated_days": 6.2,
   "traced_mem_kb_samples": [
-   52,
-   88,
-   106,
-   103,
-   120,
-   118,
-   115,
-   112,
-   125,
-   123
+   596,
+   663,
+   679,
+   689,
+   700,
+   709,
+   717,
+   727,
+   735,
+   743
   ],
-  "traced_peak_kb": 471,
-  "offer_rows": 83,
-  "distinct_fingerprints": 83,
-  "alerts_rows": 603,
+  "traced_peak_kb": 1041,
+  "offer_rows": 80,
+  "distinct_fingerprints": 80,
+  "alerts_rows": 1788,
   "duplicate_alert_keys": 0,
-  "notifications_sent": 6
+  "notifications_sent": 2
  }
 }

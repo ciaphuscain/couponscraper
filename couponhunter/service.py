@@ -35,7 +35,9 @@ class Evaluation:
 
 
 _CACHE: OrderedDict[tuple, Evaluation] = OrderedDict()
+_CACHE_STAMP: dict[str, tuple] = {}
 _CACHE_SIZE = 512
+KEEP_SCENARIOS = 50  # enough for every view; the full list can be thousands
 _CACHE_BUCKET_S = 300  # lifecycle/staleness are time-dependent; re-evaluate at least every 5 minutes
 
 
@@ -45,7 +47,13 @@ def evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] | 
     Any commit, by this process or another (e.g. the CLI), invalidates every
     entry, so a cached answer is never staler than the data plus 5 minutes.
     """
-    key = (db.instance_id, db.version(), int(now.timestamp()) // _CACHE_BUCKET_S, asin.upper())
+    stamp = (db.version(), int(now.timestamp()) // _CACHE_BUCKET_S)
+    if _CACHE_STAMP.get(db.instance_id) != stamp:
+        # Data or time bucket moved on: every cached entry for this database is invalid.
+        for k in [k for k in _CACHE if k[0] == db.instance_id]:
+            del _CACHE[k]
+        _CACHE_STAMP[db.instance_id] = stamp
+    key = (db.instance_id, asin.upper())
     hit = _CACHE.get(key)
     if hit is not None:
         _CACHE.move_to_end(key)
@@ -73,6 +81,7 @@ def _evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] |
         include_hypothetical=bool(settings.get("include_hypothetical_instruments")),
         stacking_defaults=repo.stacking_defaults(settings),
     )
+    result.scenarios = trim_scenarios(result.scenarios, result.best_confirmed)
     hist = repo.price_history(db, p["id"])
     obs = [Observation(r["price"], repo.parse_iso(r["observed_at"]), r["list_price"]) for r in hist]
     stats = compute_stats(obs, now)
@@ -109,6 +118,17 @@ def scenario_json(s: Scenario, offers_by_id: dict[str, Any] | None = None) -> di
             for a in s.applied
         ],
     }
+
+
+def trim_scenarios(scenarios: list[Scenario], best_confirmed: Scenario | None) -> list[Scenario]:
+    """Keep the top scenarios plus the ones result properties depend on (first
+    confirmed, no-offer baselines), *in the original rank order*: best_confirmed
+    is defined as the first confirmed scenario, so reordering would change it."""
+    keep_ids = {id(s) for s in scenarios[:KEEP_SCENARIOS]}
+    keep_ids |= {id(s) for s in scenarios if not s.applied}
+    if best_confirmed is not None:
+        keep_ids.add(id(best_confirmed))
+    return [s for s in scenarios if id(s) in keep_ids]
 
 
 def evaluation_json(ev: Evaluation, db: Database, now: datetime, max_scenarios: int = 8) -> dict[str, Any]:

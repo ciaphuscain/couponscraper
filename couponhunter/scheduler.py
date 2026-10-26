@@ -97,8 +97,11 @@ def default_jobs(db: Database, notifier: Notifier, backup_dir) -> list[Job]:
             cutoff = iso(now - timedelta(days=90))
             n1 = c.execute("DELETE FROM source_runs WHERE started_at < ?", (cutoff,)).rowcount
             n2 = c.execute("DELETE FROM job_runs WHERE started_at < ?", (cutoff,)).rowcount
-            n3 = c.execute("DELETE FROM alerts WHERE status IN ('sent','suppressed','failed') AND created_at < ?",
+            n3 = c.execute("DELETE FROM alerts WHERE status IN ('sent','failed') AND created_at < ?",
                            (iso(now - timedelta(days=180)),)).rowcount
+            # Suppressed rows only explain recent silence; two weeks is plenty.
+            n3 += c.execute("DELETE FROM alerts WHERE status = 'suppressed' AND created_at < ?",
+                            (iso(now - timedelta(days=14)),)).rowcount
         return f"backup={path.name} pruned source_runs={n1} job_runs={n2} alerts={n3}"
 
     return [

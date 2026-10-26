@@ -135,10 +135,11 @@ def bench(quick: bool) -> dict:
         n_offers = len(repo.offers_for_asin(db, asins[0], NOW))
         res["offers_for_asin_lookup"] = {"candidate_offers": n_offers, **timed(lambda: repo.offers_for_asin(db, asins[0], NOW), 50)}
         res["price_history_query_10k_rows"] = timed(lambda: repo.price_history(db, pid0), 30)
-        res["evaluate_product_10k_history"] = timed(lambda: service.evaluate(db, asins[0], NOW), 30)
+        res["evaluate_product_10k_history_cold"] = timed(lambda: (service._CACHE.clear(), service.evaluate(db, asins[0], NOW)), 30)
         app = App(db, "t" * 43, 8765, clock=lambda: NOW)
         req = Request("GET", f"/api/v1/products/{asins[1]}", {}, {"host": "127.0.0.1:8765", "x-couponhunter-token": "t" * 43})
-        res["api_product_lookup"] = {"candidate_offers": len(repo.offers_for_asin(db, asins[1], NOW)), **timed(lambda: app.handle(req), 50)}
+        res["api_product_lookup_cold"] = {"candidate_offers": len(repo.offers_for_asin(db, asins[1], NOW)),
+                                          **timed(lambda: (service._CACHE.clear(), app.handle(req)), 50)}
         cookie = {"host": "127.0.0.1:8765", "cookie": f"ch_session={app.session}"}
         res["stress_watchlist_100_products_cold"] = timed(lambda: (service._CACHE.clear(), app.handle(Request("GET", "/watchlist", {}, cookie))), 2)
         res["stress_watchlist_100_products_warm"] = timed(lambda: app.handle(Request("GET", "/watchlist", {}, cookie)), 5)

@@ -290,6 +290,25 @@ class BasisBounds(unittest.TestCase):
         self.assertGreater(checked, 1000)
 
 
+class TrimTests(unittest.TestCase):
+    def test_trim_preserves_best_confirmed_and_order(self):
+        from couponhunter.service import KEEP_SCENARIOS, trim_scenarios
+
+        many = [offer(f"c{i}", OfferKind.PRODUCT_COUPON, discount_type=DiscountType.FLAT, value=rupees(1000 + i),
+                      basis=Basis.PRICE, account_specific=True) for i in range(3)]
+        many += [offer(f"p{i}", OfferKind.PROMO_CODE, discount_type=DiscountType.FLAT, value=rupees(1000 + i),
+                       basis=Basis.PRICE, account_specific=True) for i in range(3)]
+        many += [cashback_5pct(account_specific=True), hdfc_10pct(stacks_with={})]
+        r = optimize(product(), many, user(HDFC_CC, SBI_DC), NOW)
+        self.assertGreater(len(r.scenarios), KEEP_SCENARIOS)
+        before = r.best_confirmed
+        self.assertNotIn(before, r.scenarios[:KEEP_SCENARIOS])  # the case that broke
+        r.scenarios = trim_scenarios(r.scenarios, before)
+        self.assertIs(r.best_confirmed, before)
+        self.assertEqual(r.scenarios, sorted(r.scenarios, key=lambda s: (s.risk_adjusted_cost, s.cash_cost,
+                                                                          len(s.applied), not s.rules_confirmed)))
+
+
 class Bounds(unittest.TestCase):
     def test_per_kind_limit_keeps_weaker_offer_that_stacks(self):
         # Strongest coupon doesn't stack with the bank offer; a weaker one does.

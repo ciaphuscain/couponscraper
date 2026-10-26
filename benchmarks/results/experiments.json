@@ -1,0 +1,328 @@
+{
+ "B_parser_accuracy": {
+  "dataset": "26 author-written strings (19 offers, 7 non-offers); not sampled from live pages",
+  "exact_field_match": 19,
+  "parsed_with_wrong_fields": 0,
+  "non_offers_accepted": 0,
+  "offers_rejected_as_unknown": 0,
+  "precision_exact": 1.0,
+  "recall_exact": 1.0,
+  "false_positive_rate_on_non_offers": 0.0,
+  "unknown_rate_on_offers": 0.0,
+  "failures": []
+ },
+ "C_ranking_strategies": {
+  "cases": 2000,
+  "pick_differs_from_risk_adjusted_pct": {
+   "highest_advertised_discount": 10.2,
+   "lowest_checkout_price": 19.1,
+   "lowest_effective_if_all_paid": 10.2,
+   "risk_adjusted": 0.0
+  },
+  "mean_expected_regret_inr": {
+   "highest_advertised_discount": 14.03,
+   "lowest_checkout_price": 90.52,
+   "lowest_effective_if_all_paid": 14.03,
+   "risk_adjusted": 0.0
+  },
+  "mean_regret_if_cashback_settles_25pct_less_inr": {
+   "highest_advertised_discount": 15.6,
+   "lowest_checkout_price": 87.8,
+   "lowest_effective_if_all_paid": 15.6,
+   "risk_adjusted": 0.39
+  },
+  "caveat": "Expected cost uses the optimizer's own probability model, so risk_adjusted is optimal by construction under it; the result shows how often and by how much naive strategies diverge, not real-world savings."
+ },
+ "D_deal_quality": {
+  "naive_percent_off": {
+   "alerts": 370,
+   "true_positives": 100,
+   "false_positives": 270,
+   "missed": 0,
+   "precision": 0.27,
+   "recall": 1.0,
+   "alerts_by_class": {
+    "genuine_drop": 100,
+    "inflated_reference": 100,
+    "pre_sale_inflation": 100,
+    "steady": 70
+   }
+  },
+  "history_aware": {
+   "alerts": 100,
+   "true_positives": 100,
+   "false_positives": 0,
+   "missed": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "alerts_by_class": {
+    "genuine_drop": 100,
+    "inflated_reference": 0,
+    "pre_sale_inflation": 0,
+    "steady": 0
+   }
+  },
+  "dataset": "400 synthetic 90-day daily price series, 100 per class"
+ },
+ "F_source_failure": {
+  "x_fetch_attempts_over_7_days": 7,
+  "timeline_every_6h": [
+   {
+    "hours": 0,
+    "x_enabled": 1,
+    "x_failures": 0,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 6,
+    "x_enabled": 1,
+    "x_failures": 4,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 12,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 18,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 24,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 30,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 36,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 42,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 48,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "₹700 coupon (source X)"
+    ],
+    "cash_cost_inr": 9300
+   },
+   {
+    "hours": 54,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 60,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 66,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 72,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 78,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 84,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 90,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 96,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 102,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 108,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 114,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 120,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 126,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 132,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 138,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 144,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 150,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 156,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   },
+   {
+    "hours": 162,
+    "x_enabled": 0,
+    "x_failures": 5,
+    "best_confirmed": [
+     "5% HDFC (source Y)"
+    ],
+    "cash_cost_inr": 9600
+   }
+  ],
+  "alerts_sent": 1,
+  "alert_texts": [
+   "Why: ₹700 off with offers you're eligible for"
+  ]
+ }
+}
