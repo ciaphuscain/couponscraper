@@ -41,7 +41,7 @@ the development container (DNS refused), so Amazon-specific claims below are
 | **Amazon offer/coupon pages via crawler** | — | — | — | — | **Not permitted [S]** | — | — | — | — | — | **Rejected** | — |
 | **Bank / card issuer offer pages** | Bank promo terms | None | — | — | Issuer ToS vary; not automated [A] | Local | ₹0 | Medium | Major banks | Manual copy-paste | Manual only | Extension (bank carousel on product page) |
 | **Cashback portals (CashKaro, GoPaisa, …)** | Portal rates, tracked transactions | Account | Partner/affiliate programs only [A] | — | No public consumer API found [A] | — | — | — | — | — | **No** | Manual entry + cashback ledger |
-| **Promotional emails** | Codes, bank offers | Mailbox access | User | — | With explicit consent | Local | ₹0 | Medium | User's subscriptions | Medium (IMAP + secret handling) | Not built (roadmap) | Save `.json` / paste text |
+| **Promotional emails** (implemented, file-based) | Codes, bank offers, stated expiry | None: you save `.eml` files or export `.mbox` (e.g. Google Takeout) | User | — | Your own mail, with your consent | Local; only offer lines + From/Subject kept | ₹0 | Low–medium (sender spoofing → always unverified) | Your subscriptions | Done (`couponhunter import-email`) | Yes | Paste text |
 | **Gift-card resellers** | Discounted balance | Account | — | — | High fraud risk; transferability rules [A] | — | — | — | — | — | **Not integrated** | User models a known purchase as a wallet instrument with `cost_ratio_bp` |
 
 ## What can and cannot be verified automatically

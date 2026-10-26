@@ -270,10 +270,11 @@ def memory_soak(cycles: int) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--soak-cycles", type=int, default=3000, help="15 simulated minutes each; 3000 = ~31 days")
     a = ap.parse_args()
     env = {"python": platform.python_version(), "sqlite": __import__("sqlite3").sqlite_version, "os": platform.platform(),
            "cpu_count": os.cpu_count(), "machine": platform.machine(), "date": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    out = {"env": env, "bench": bench(a.quick), "soak": memory_soak(200 if a.quick else 600)}
+    out = {"env": env, "bench": bench(a.quick), "soak": memory_soak(200 if a.quick else a.soak_cycles)}
     dest = ROOT / "benchmarks" / "results"
     dest.mkdir(exist_ok=True)
     (dest / f"bench-{platform.node() or 'host'}.json").write_text(json.dumps(out, indent=1))

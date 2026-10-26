@@ -28,6 +28,7 @@ phishing page).
 | T20 | **Short-link resolution abused for SSRF** | Only https `amzn.in`/`amzn.to`/`a.co`; HEAD; redirects never followed; ≤2 shortener hops; result must parse as an amazon.in product URL; 5 s timeout | — | `ShortLinkTests` |
 | T21 | **Passive observation over-collecting browsing data** | Opt-in; watched ASINs only (enforced by the backend, unwatched never stored); hourly limit for unchanged prices; checkout/sign-in/account/payment/order paths excluded in the manifest; no panel/DOM changes on those pages | It runs on other amazon.in pages when enabled | `test_passive_observations_only_for_watched_and_rate_limited`, E2E |
 | T22 | **Replay/duplication after bot restart** | Persisted update offset; update id as idempotency key | — | `test_poll_persists_offset_and_survives_handler_crash` |
+| T23 | **Phishing / spoofed promotional emails** | Imported offers always UNVERIFIED; links and their text dropped; attachments ignored; scripts/styles stripped; From/Subject stored as evidence; 200 MB / 5,000-message caps | A spoofed email can still add an unverified offer, shown as such | `test_email.py` |
 
 ## Residual risks you need to decide on
 

@@ -117,6 +117,7 @@ Without Telegram, alerts go to `%LOCALAPPDATA%\CouponHunter\alerts.jsonl`.
 | `quiet_hours` | Settings | 22:30–07:30 IST | Deferred delivery |
 | `price_fresh_hours` | Settings | 12 | Older prices are stale: no alerts, warning shown |
 | `stacking_defaults` | Settings | `{}` | Owner-confirmed pair rules, e.g. `{"bank_instant+product_coupon":"yes"}` |
+| `couponhunter import-email PATH [--max-age-days N]` | CLI | 30 days | Import offers from saved emails |
 | `extra_redemption_domains` | `couponhunter settings extra_redemption_domains '["www.examplebank.com"]'` | `[]` | Allow official links on more https domains |
 | `include_hypothetical_instruments` | Settings | off | Also show offers for cards you don't hold |
 | Per-source `min_interval_s`, `stale_after_h` | `sources` table (set at registration) | 3600 s, 48 h | Fetch spacing; freshness window |

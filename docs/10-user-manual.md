@@ -89,6 +89,26 @@ Paste the offer text exactly as shown (Offers → "Add an offer you've seen"). S
 For bulk entry, use a JSON/CSV file and `couponhunter import file.json --evidence official_page`
 (format in `couponhunter/sources/file_import.py`; example in `fixtures/demo_offers.json`).
 
+### Offers from your email
+
+Save promotional emails (Outlook/Gmail "Download message" → `.eml`) into a folder, or export a
+label with Google Takeout (`.mbox`), then:
+
+```powershell
+couponhunter import-email "$HOME\Downloads\offer-mails"
+```
+Only lines that read like offers are kept, with the sender and subject as evidence. Links are
+ignored, everything is marked *unverified* (sender addresses can be faked), and emails older than
+30 days are skipped unless they state a future expiry (`--max-age-days` changes that).
+
+### Cashback reminders
+
+Record expected cashback when you record a purchase. If it isn't marked paid by its expected date
+(90 days after purchase unless you say otherwise), you get a reminder every 14 days to file a
+missing-cashback claim. Mark it pending → confirmed → paid on the History page to stop the
+reminders. The History page also shows **alert precision**: how many deal alerts led to a
+purchase or a working offer within a week.
+
 ### Recording what you actually saved
 
 After buying, use **Record a purchase** on the product page: the price without offers, what you

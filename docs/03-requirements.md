@@ -34,7 +34,11 @@ Status key: **Done** = implemented and covered by tests · **Partial** · **Not 
 ### P2/P3
 | Requirement | Status |
 |---|---|
-| Cashback settlement tracking | Done (state machine with audit trail, measured provider rates feed the optimizer) |
+| Cashback settlement tracking | Done (state machine with audit trail, measured provider rates feed the optimizer, overdue reminders every 14 days) |
+| Promotional email import | Done (`.eml`/`.mbox`/folder; no credentials) |
+| Opportunity-precision report | Done (History page) |
+| Buy/wait advice, card insights, cross-product offer inference | Done |
+| Mobile companion (Telegram bot), opt-in passive price observation | Done |
 | Source quality scoring | Partial: health, failure counts and reject counts per run; no composite score |
 | Cross-source duplicate detection | Done |
 | Personalised recommendations, product equivalence, expiry prediction, LLM parsing, learning-to-rank | Not built (no measured need yet) |
@@ -64,6 +68,8 @@ Status key: **Done** = implemented and covered by tests · **Partial** · **Not 
 | A5 | Authenticity priors (official 95%, listed 75%, unverified 50%) | Confidence numbers are heuristics | Track Applied/Failed outcomes; recalibrate |
 | A6 | Offers re-confirmed within 48 h (24 h for extension captures) are fresh | Too long: stale offers shown; too short: good offers hidden | Per-source `stale_after_h` |
 | A7 | IST (+05:30) for date-only expiries and quiet hours | Off-by-hours expiry | Fixed offset; India has no DST |
+| A8 | Cashback without a stated date is due within 90 days of purchase | Reminders too early or late | Enter the provider's stated date when recording |
+| A9 | A bank offer shown on several product pages may apply to other products | "Possibly" answers that don't hold | Shown as unknown, never confirmed or alerted |
 
 ## Success metrics (how the owner will judge it)
 
@@ -72,5 +78,5 @@ Status key: **Done** = implemented and covered by tests · **Partial** · **Not 
 | Realised savings | Σ(reference − cash paid) + cashback **paid** | History page |
 | Redemption success rate | applied / (applied + failed + not_shown) | `redemption_attempts` |
 | Redemption effort | Clicks from product page to redemption path | E2E: 1 click (Track/Save) to see the answer; steps listed |
-| Opportunity precision | Alerts followed by a recorded successful redemption / alerts sent | `alerts` × `redemption_attempts` (manual analysis; no dashboard yet) |
+| Opportunity precision | Alerts followed within 7 days by a purchase or applied offer / deal alerts sent | History page (`repo.alert_precision`) |
 | Operational efficiency | Source runs, failures, rejects; CPU/time per evaluation | Health page, benchmarks |

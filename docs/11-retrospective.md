@@ -14,7 +14,8 @@
 4. **Confidence and settlement numbers are documented heuristics** (priors), not learned
    probabilities, until your own records accumulate.
 5. **Extension selectors will break** when Amazon changes markup. The panel fails safe and says so.
-6. **No email ingestion, no cashback-portal or bank integration, no Creators API adapter.**
+6. **No live mailbox, cashback-portal or bank integration, and no Creators API adapter.** Emails are
+   imported from saved files only.
 7. **Single user, single machine, loopback only.**
 8. **Cold dashboard views scale linearly with watched products** (about 12 ms per product on
    realistic data, more with many sitewide offers). Warm views are cached.

@@ -66,8 +66,10 @@ Price ₹10,000 · coupon ₹500 · HDFC 10% up to ₹750 · cashback 5% up to �
 | Opt-in passive price observation of watched products | ✅ E2E tested |
 | Cross-product inference of bank offers ("possibly applies") | ✅ never confirmed, never alerted |
 | Card insights | ✅ |
+| Promotional email import (.eml/.mbox, no credentials) | ✅ |
+| Overdue-cashback reminders, alert-precision report | ✅ |
 | `couponhunter doctor`, one-command Windows setup | ✅ setup script run in Windows CI |
-| Amazon Creators API, email import, cashback-portal APIs | ❌ not available / not built (see [docs/02](docs/02-source-feasibility.md)) |
+| Amazon Creators API, live mailbox access, cashback-portal APIs | ❌ not available / not built (see [docs/02](docs/02-source-feasibility.md)) |
 
 **Biggest limitation:** there's no permitted automated access to amazon.in. Prices and offers come
 from what you see: product pages (extension), pages you browse (opt-in observation), what you
