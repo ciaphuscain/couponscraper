@@ -133,8 +133,13 @@ class WebTests(unittest.TestCase):
         self.assertEqual(ev["best_confirmed"]["cash_cost"], 9_250_00)
         self.assertEqual(ev["best_possible"]["cash_cost"], 8_750_00)
 
-        # Page re-captured without the coupon -> coupon withdrawn for this ASIN
+        # Empty capture where the offers area wasn't seen (lazy page, changed layout): nothing withdrawn.
         st, out, _ = self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "offers": []})
+        self.assertEqual(out["best_confirmed"]["cash_cost"], 9_250_00)
+        self.assertTrue(any("not withdrawing" in m for m in out["capture"]["messages"]))
+        # The offers area was seen and really is empty -> offers withdrawn for this ASIN.
+        st, out, _ = self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "offers": [],
+                                                          "offers_area_seen": True})
         self.assertEqual(out["best_confirmed"]["cash_cost"], 10_000_00)
 
     def test_bank_offer_seen_elsewhere_is_possible_not_confirmed(self):
@@ -193,6 +198,24 @@ class WebTests(unittest.TestCase):
         self.assertEqual(ev["price"], 9_999_00)
         self.assertEqual(self.api("POST", "/api/v1/observations", {"items": "x"})[0], 400)
         self.assertEqual(self.api("POST", "/api/v1/observations", {"items": [{"asin": "B0TESTASIN", "price": -5}]})[0], 400)
+
+    def test_cashback_status_change_keeps_amount_when_blank(self):
+        self.post_form("/actions/watch", {"url": "B0TESTASIN", "price": "10000"})
+        self.post_form("/actions/purchase", {"asin": "B0TESTASIN", "reference_price": "10000", "checkout_paid": "9500",
+                                             "cashback": "500", "cashback_provider": "ExamplePortal"})
+        rid = self.db.one("SELECT id FROM cashback_records")[0]
+        for frm, to in (("expected", "pending"), ("pending", "confirmed"), ("confirmed", "paid")):
+            r = self.post_form("/actions/cashback", {"record_id": rid, "from": frm, "status": to, "amount": ""})
+            self.assertEqual(r.status, 303)
+        self.assertEqual(repo.savings_summary(self.db).cashback_paid, 500_00)
+
+    def test_redemption_correction(self):
+        self.api("POST", "/api/v1/captures", {"asin": "B0TESTASIN", "price": 10_000_00, "offers": ["Save ₹500 with coupon"]})
+        oid = self.db.one("SELECT id FROM offers")[0]
+        for outcome in ("applied", "applied", "failed"):  # mis-click, replay, correction
+            self.api("POST", "/api/v1/redemptions", {"offer_id": oid, "outcome": outcome, "idempotency_key": "x1"})
+        rows = self.db.query("SELECT outcome FROM redemption_attempts")
+        self.assertEqual([r["outcome"] for r in rows], ["failed"])
 
     def test_unknown_product(self):
         st, out, _ = self.api("GET", "/api/v1/products/B0UNKNOWN1")

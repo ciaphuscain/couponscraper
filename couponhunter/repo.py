@@ -100,6 +100,10 @@ def validate_setting(key: str, value: Any) -> None:
             raise ValueError(f"{key} must be a non-negative integer")
 
 
+def extra_domains(settings: dict[str, Any]) -> frozenset[str]:
+    return frozenset(str(d).lower() for d in settings.get("extra_redemption_domains") or [])
+
+
 def user_profile(settings: dict[str, Any]) -> UserProfile:
     prof = settings.get("profile", {})
     wallet = tuple(
@@ -352,9 +356,15 @@ def record_redemption(db: Database, offer_id: int, product_id: int | None, outco
         if not c.execute("SELECT 1 FROM offers WHERE id=?", (offer_id,)).fetchone():
             raise NotFound(offer_id)
         if idempotency_key:
-            r = c.execute("SELECT id FROM redemption_attempts WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+            r = c.execute("SELECT id, outcome FROM redemption_attempts WHERE idempotency_key=?",
+                          (idempotency_key,)).fetchone()
             if r:
-                return r[0]
+                # Same attempt reported again: a replay is a no-op, a different outcome is the
+                # user correcting a mis-click ("Applied" then "Didn't apply"), so the latest wins.
+                if r["outcome"] != outcome:
+                    c.execute("UPDATE redemption_attempts SET outcome=?, failure_reason=?, observed_savings=? WHERE id=?",
+                              (outcome, (failure_reason or "")[:300] or None, observed_savings, r["id"]))
+                return r["id"]
         return c.execute(
             """INSERT INTO redemption_attempts(offer_id, product_id, attempted_at, outcome, failure_reason,
                    observed_savings, eligibility_snapshot, channel, idempotency_key) VALUES (?,?,?,?,?,?,?,?,?)""",

@@ -6,6 +6,7 @@ Everything the API, CLI, alerting and extension show comes from evaluate().
 
 from __future__ import annotations
 
+import threading
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -37,6 +38,7 @@ class Evaluation:
 
 _CACHE: OrderedDict[tuple, Evaluation] = OrderedDict()
 _CACHE_STAMP: dict[str, tuple] = {}
+_CACHE_LOCK = threading.Lock()
 _CACHE_SIZE = 512
 KEEP_SCENARIOS = 50  # enough for every view; the full list can be thousands
 _CACHE_BUCKET_S = 300  # lifecycle/staleness are time-dependent; re-evaluate at least every 5 minutes
@@ -49,20 +51,24 @@ def evaluate(db: Database, asin: str, now: datetime, settings: dict[str, Any] | 
     entry, so a cached answer is never staler than the data plus 5 minutes.
     """
     stamp = (db.version(), int(now.timestamp()) // _CACHE_BUCKET_S)
-    if _CACHE_STAMP.get(db.instance_id) != stamp:
-        # Data or time bucket moved on: every cached entry for this database is invalid.
-        for k in [k for k in _CACHE if k[0] == db.instance_id]:
-            del _CACHE[k]
-        _CACHE_STAMP[db.instance_id] = stamp
     key = (db.instance_id, asin.upper())
-    hit = _CACHE.get(key)
-    if hit is not None:
-        _CACHE.move_to_end(key)
-        return hit
-    ev = _evaluate(db, asin, now, settings)
-    _CACHE[key] = ev
-    if len(_CACHE) > _CACHE_SIZE:
-        _CACHE.popitem(last=False)
+    with _CACHE_LOCK:  # HTTP threads, the scheduler and the bot share this cache
+        if _CACHE_STAMP.get(db.instance_id) != stamp:
+            # Data or time bucket moved on: every cached entry for this database is invalid.
+            for k in [k for k in _CACHE if k[0] == db.instance_id]:
+                del _CACHE[k]
+            _CACHE_STAMP[db.instance_id] = stamp
+        hit = _CACHE.get(key)
+        if hit is not None:
+            _CACHE.move_to_end(key)
+            return hit
+    ev = _evaluate(db, asin, now, settings)  # computed outside the lock
+    with _CACHE_LOCK:
+        # Store only if nothing committed meanwhile; otherwise ev may already be stale.
+        if _CACHE_STAMP.get(db.instance_id) == stamp and db.version() == stamp[0]:
+            _CACHE[key] = ev
+            if len(_CACHE) > _CACHE_SIZE:
+                _CACHE.popitem(last=False)
     return ev
 
 
@@ -166,6 +172,7 @@ def evaluation_json(ev: Evaluation, db: Database, now: datetime, max_scenarios: 
         "advice": asdict(ev.advice) if ev.advice else None,
     })
     out["offers"] = [offer_json(o) for o in ev.offers]
+    out["redemption_domains"] = sorted(repo.extra_domains(repo.get_settings(db)))
     return out
 
 

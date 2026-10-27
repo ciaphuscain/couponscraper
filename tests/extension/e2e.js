@@ -99,6 +99,19 @@ async function clickButton(cdp, page, label) {
     assert.ok(text.includes("2 new offer(s), 1 not understood"), text);
     await page.screenshot({ path: path.join(home, "panel-unconfirmed.png") });
 
+    // Feedback right after saving must keep the saved answer on screen (regression: it used to
+    // re-render the pre-save "Not tracked yet" state).
+    await clickButton(cdp, page, "Didn't apply");
+    text = await waitFor(async () => { const t = await panelText(cdp); return t.includes("Thanks") && t; }, 5000, "feedback after save");
+    assert.ok(text.includes("Lowest realistic price") && !text.includes("Not tracked yet"), text);
+    // ...and a correction of that mis-click replaces it rather than being ignored.
+    await clickButton(cdp, page, "Applied");
+    await page.waitForTimeout(500);
+    const rows = execFileSync("python3", ["-c",
+      "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute(\"select group_concat(outcome) from redemption_attempts\").fetchone()[0])",
+      path.join(home, "couponhunter.db")], { encoding: "utf8" }).trim();
+    assert.strictEqual(rows, "applied", "mis-click then correction must leave one 'applied' attempt");
+
     // Owner confirms coupon+bank stack (e.g. after seeing it at checkout) -> reload shows ₹8,750 as confirmed.
     py(home, "settings", "stacking_defaults", JSON.stringify({ "bank_instant+product_coupon": "yes" }));
     await page.reload();

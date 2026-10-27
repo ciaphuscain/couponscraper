@@ -6,6 +6,7 @@
   "use strict";
   const L = self.CHLib;
   const asin = L.asinFromUrl(location.href);
+  const PAGE_VIEW = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   if (!asin || document.getElementById("couponhunter-host")) return;
 
   const host = document.createElement("div");
@@ -114,10 +115,11 @@
       const row = el("div", null, "o");
       row.appendChild(el("div", `${a.title} — ${L.formatPaise(a.amount)}${a.deferred ? " later" : ""}`));
       if (a.code) row.appendChild(btn(`Copy code ${a.code}`, () => navigator.clipboard.writeText(a.code)));
-      if (a.redemption_url && L.isSafeRedemptionUrl(a.redemption_url)) {
+      if (a.redemption_url && L.isSafeRedemptionUrl(a.redemption_url, d.redemption_domains)) {
         row.appendChild(btn("Open offer page", () => window.open(a.redemption_url, "_blank", "noopener,noreferrer"), true));
       }
-      const key = `${asin}-${a.offer_id}-${Date.now()}`;
+      // One attempt per offer per page view: clicking the other button corrects it (latest wins).
+      const key = `${asin}-${a.offer_id}-${PAGE_VIEW}`;
       row.appendChild(btn("Applied ✓", () => feedback(a.offer_id, "applied", key), true));
       row.appendChild(btn("Didn't apply ✗", () => feedback(a.offer_id, "failed", key), true));
       panel.appendChild(row);
@@ -137,7 +139,8 @@
     const c = r.data.capture || {};
     const check = L.validateEvaluation(r.data);
     if (!check.ok) return render({ error: `Unexpected backend response (${check.why}). Update the extension/backend.` });
-    render({ data: { ...r.data, tracked: r.data.tracked || watch }, note: `Saved: ${c.offers_created || 0} new offer(s), ${c.offers_unparsed || 0} not understood.` });
+    last = { ...r.data, tracked: r.data.tracked || watch };  // feedback re-renders from `last`
+    render({ data: last, note: `Saved: ${c.offers_created || 0} new offer(s), ${c.offers_unparsed || 0} not understood.` });
   }
 
   async function feedback(offerId, outcome, key) {

@@ -62,53 +62,90 @@ if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
 $venvPy = (Resolve-Path ".\.venv\Scripts\python.exe").Path
 
 # Windows locks a running .exe, so a running server would make the reinstall fail
-# (typical when re-running setup after `git pull`). Stop our logon task, restart it after.
+# (typical when re-running setup after `git pull`). Stop our logon task, restart it after,
+# even if a later step fails (see the finally block).
 $restartTask = $false
+$taskStarted = $false
 $task = Get-ScheduledTask -TaskName "CouponHunter" -ErrorAction SilentlyContinue
 if ($task -and $task.State -eq "Running") {
     Write-Host "    stopping the running CouponHunter task for the update"
     Stop-ScheduledTask -TaskName "CouponHunter"
     $restartTask = $true
 }
-$exePath = Join-Path (Get-Location).Path ".venv\Scripts\couponhunter.exe"
-foreach ($i in 1..10) {
-    $running = @(Get-Process -Name couponhunter -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exePath })
-    if ($running.Count -eq 0) { break }
-    if ($restartTask) { Start-Sleep -Seconds 1; continue }
-    throw "CouponHunter is running from this folder (PID $($running[0].Id)). Stop it (Ctrl+C in its window) and re-run setup."
-}
-& $venvPy -m pip install --disable-pip-version-check -q -e .
-if ($LASTEXITCODE -ne 0) { throw "pip install failed (see the messages above)." }
-$ch = (Resolve-Path ".\.venv\Scripts\couponhunter.exe").Path
 
-# 3. Data folder, database, API token (idempotent).
-Step "Initialising data folder"
-if ($Demo) { & $ch init --demo } else { & $ch init }
-if ($LASTEXITCODE -ne 0) { throw "couponhunter init failed." }
-
-# 4. Optional: start at logon.
-if ($AutoStart) {
-    Step "Registering logon task 'CouponHunter'"
-    if (Get-ScheduledTask -TaskName "CouponHunter" -ErrorAction SilentlyContinue) {
-        Write-Host "    already registered (leaving it unchanged)"
-        if ($restartTask) { Start-ScheduledTask -TaskName "CouponHunter"; Write-Host "    restarted" }
-    } else {
-        # Run python.exe directly (not pip's couponhunter.exe launcher, which spawns a child process):
-        # stopping the task then really stops the server, and updates never hit a locked .exe.
-        $action   = New-ScheduledTaskAction -Execute $venvPy -Argument "-m couponhunter serve" -WorkingDirectory (Get-Location).Path
-        $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-        $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
-                    -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
-        Register-ScheduledTask -TaskName "CouponHunter" -Action $action -Trigger $trigger -Settings $settings `
-            -ErrorAction Stop | Out-Null
-        Start-ScheduledTask -TaskName "CouponHunter" -ErrorAction Stop
-        Write-Host "    registered and started"
+function Wait-ServerGone([bool]$TaskWasStopped) {
+    # 1) A server started by hand from this folder holds a lock on couponhunter.exe.
+    $exePath = Join-Path (Get-Location).Path ".venv\Scripts\couponhunter.exe"
+    foreach ($i in 1..10) {
+        $running = @(Get-Process -Name couponhunter -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exePath })
+        if ($running.Count -eq 0) { break }
+        if (-not $TaskWasStopped) {
+            throw "CouponHunter is running from this folder (PID $($running[0].Id)). Stop it (Ctrl+C in its window) and re-run setup."
+        }
+        if ($i -eq 10) { $running | Stop-Process -Force; Start-Sleep -Seconds 1 } else { Start-Sleep -Seconds 1 }
+    }
+    # 2) A server left behind by an older task (pip's launcher spawned a child python.exe that
+    #    survives Stop-ScheduledTask) still holds the port. Only a process whose command line is
+    #    "couponhunter ... serve" is ever stopped; anything else is reported and left alone.
+    foreach ($i in 1..15) {
+        $conn = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $conn) { return }
+        $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($conn.OwningProcess)" -ErrorAction SilentlyContinue
+        if ($proc -and $proc.CommandLine -match 'couponhunter' -and $proc.CommandLine -match '\bserve\b') {
+            if (-not $TaskWasStopped) {
+                throw "CouponHunter is running (PID $($proc.ProcessId)). Stop it (Ctrl+C in its window) and re-run setup."
+            }
+            Write-Host "    stopping leftover CouponHunter server (PID $($proc.ProcessId))"
+            Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+            continue
+        }
+        Write-Host "    note: port 8765 is used by another program ($($proc.Name)); run CouponHunter with --port"
+        return
     }
 }
 
-if ($restartTask -and -not $AutoStart) {
-    Start-ScheduledTask -TaskName "CouponHunter"
-    Write-Host "    restarted the CouponHunter task"
+try {
+    Wait-ServerGone $restartTask
+    & $venvPy -m pip install --disable-pip-version-check -q -e .
+    if ($LASTEXITCODE -ne 0) { throw "pip install failed (see the messages above)." }
+    $ch = (Resolve-Path ".\.venv\Scripts\couponhunter.exe").Path
+
+    # 3. Data folder, database, API token (idempotent).
+    Step "Initialising data folder"
+    if ($Demo) { & $ch init --demo } else { & $ch init }
+    if ($LASTEXITCODE -ne 0) { throw "couponhunter init failed." }
+
+    # 4. Optional: start at logon.
+    if ($AutoStart) {
+        Step "Registering logon task 'CouponHunter'"
+        # python.exe directly (not pip's couponhunter.exe launcher, which spawns a child process):
+        # stopping the task then really stops the server, and updates never hit a locked .exe.
+        $action   = New-ScheduledTaskAction -Execute $venvPy -Argument "-m couponhunter serve" -WorkingDirectory (Get-Location).Path
+        # Laptops: start on battery and keep running when unplugged (the defaults do neither).
+        $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
+                    -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable `
+                    -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        if (Get-ScheduledTask -TaskName "CouponHunter" -ErrorAction SilentlyContinue) {
+            # Re-apply action and settings so tasks registered by older versions are migrated.
+            Set-ScheduledTask -TaskName "CouponHunter" -Action $action -Settings $settings -ErrorAction Stop | Out-Null
+            Write-Host "    updated the existing task"
+        } else {
+            $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+            Register-ScheduledTask -TaskName "CouponHunter" -Action $action -Trigger $trigger -Settings $settings `
+                -ErrorAction Stop | Out-Null
+            Write-Host "    registered"
+        }
+        Start-ScheduledTask -TaskName "CouponHunter" -ErrorAction Stop
+        $taskStarted = $true
+        Write-Host "    started"
+    }
+} finally {
+    # Never leave the owner's server stopped because a step above failed.
+    if ($restartTask -and -not $taskStarted) {
+        Start-ScheduledTask -TaskName "CouponHunter" -ErrorAction SilentlyContinue
+        Write-Host "    restarted the CouponHunter task"
+    }
 }
 
 # 5. Health check and next steps.

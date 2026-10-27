@@ -41,6 +41,10 @@ class FetchResult:
     schema_fingerprint: str | None = None
     # Restrict snapshot semantics to offers for one product (extension page capture).
     snapshot_asin: str | None = None
+    # An empty snapshot normally withdraws nothing (a lazy-loaded page or a briefly empty
+    # feed looks identical to "no offers"). Set only when the adapter saw the listing area
+    # itself and it really was empty.
+    empty_is_authoritative: bool = False
     warnings: list[str] = field(default_factory=list)
 
 

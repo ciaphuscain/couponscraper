@@ -50,10 +50,13 @@
     return (p < 0 ? "-" : "") + "₹" + s + (paise ? "." + String(paise).padStart(2, "0") : "");
   }
 
-  function isSafeRedemptionUrl(href) {
+  /* extraHosts: owner-approved domains from the backend (settings.extra_redemption_domains). */
+  function isSafeRedemptionUrl(href, extraHosts) {
     let u;
     try { u = new URL(href); } catch (e) { return false; }
-    return u.protocol === "https:" && !u.username && !u.password && !u.port && REDEMPTION_HOSTS.has(u.hostname);
+    const extra = Array.isArray(extraHosts) ? extraHosts.filter((h) => typeof h === "string") : [];
+    return u.protocol === "https:" && !u.username && !u.password && !u.port &&
+      (REDEMPTION_HOSTS.has(u.hostname) || extra.includes(u.hostname));
   }
 
   /* Only loopback backends; anything else could exfiltrate what the user browses. */
@@ -161,9 +164,13 @@
     }
     const deal = firstText(doc, DEAL_SELECTORS);
     if (deal && /deal/i.test(deal)) offers.push({ kind: "deal_price", title: deal.slice(0, 120) });
+    // Whether Amazon's offers section was on the page at all: only then can an empty
+    // offer list mean "no offers" rather than "not loaded yet / layout changed".
+    const offersAreaSeen = !!doc.querySelector("#vsxoffers_feature_div");
     const avail = firstText(doc, ["#availability"]).toLowerCase();
     const inStock = avail ? !/unavailable|out of stock/.test(avail) : null;
-    return { asin, title, price, list_price: listPrice || null, seller, offers: offers.slice(0, 30), in_stock: inStock, warnings };
+    return { asin, title, price, list_price: listPrice || null, seller, offers: offers.slice(0, 30), in_stock: inStock,
+             offers_area_seen: offersAreaSeen, warnings };
   }
 
   /* Prices of *watched* ASINs that appear on a listing page (search, deals,

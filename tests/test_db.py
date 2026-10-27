@@ -132,6 +132,44 @@ class EvaluationCacheTests(unittest.TestCase):
             self.assertEqual(service.evaluate(a, "B0TESTASIN", NOW).result.product.price, 90_00)
 
 
+class EvaluationCacheConcurrencyTests(unittest.TestCase):
+    def test_parallel_reads_and_writes(self):
+        import threading
+        from couponhunter import service
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            db = open_db(Path(d) / "c.db")
+            self.addCleanup(db.close)
+            asins = [f"B0CONC{i:04d}" for i in range(8)]
+            pids = []
+            for a in asins:
+                pid = repo.upsert_product(db, a, NOW)
+                repo.record_price(db, pid, 100_00, NOW, "m", "manual")
+                pids.append(pid)
+            errors, stop = [], threading.Event()
+
+            def reader():
+                while not stop.is_set():
+                    try:
+                        for a in asins:
+                            service.evaluate(db, a, NOW)
+                    except Exception as e:  # any exception is a failure
+                        errors.append(repr(e))
+                        return
+
+            threads = [threading.Thread(target=reader) for _ in range(6)]
+            for t in threads:
+                t.start()
+            for i in range(200):
+                repo.record_price(db, pids[i % len(pids)], 100_00 + i, NOW + timedelta(seconds=i + 1), "m", "manual")
+            stop.set()
+            for t in threads:
+                t.join()
+            self.assertEqual(errors, [])
+            last = service.evaluate(db, asins[199 % 8], NOW + timedelta(seconds=300))
+            self.assertEqual(last.result.product.price, 100_00 + 199)
+
+
 class BackupTests(unittest.TestCase):
     def test_backup_restore_roundtrip_and_pruning(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:

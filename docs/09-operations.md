@@ -67,7 +67,8 @@ $py = (Resolve-Path .\.venv\Scripts\python.exe).Path   # python.exe directly: on
 $action   = New-ScheduledTaskAction -Execute $py -Argument "-m couponhunter serve" -WorkingDirectory (Get-Location).Path
 $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
-            -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
+            -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable `
+            -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries   # laptops: the defaults stop it on battery
 Register-ScheduledTask -TaskName "CouponHunter" -Action $action -Trigger $trigger -Settings $settings
 # Re-running this fails with "already exists"; to update: Unregister-ScheduledTask CouponHunter -Confirm:$false, then re-register.
 

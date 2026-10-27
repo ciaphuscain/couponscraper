@@ -234,7 +234,8 @@ class Bot:
         rec = SourceRecord({"text": rest, "asins": [asin]}, "official_page", Authenticity.OFFICIAL,
                            raw_text=rest[:2000])
         with self.db.tx() as c:
-            ingest.ingest_result(c, "manual", FetchResult([rec], snapshot=False, data_origin="manual"), now, stats)
+            ingest.ingest_result(c, "manual", FetchResult([rec], snapshot=False, data_origin="manual"), now, stats,
+                                 repo.extra_domains(repo.get_settings(self.db)))
         if stats.rejected:
             return "I couldn't understand that offer. Paste it exactly as the app shows it, e.g. " \
                    "\"10% Instant Discount up to INR 1250 on HDFC Bank Credit Card\"."

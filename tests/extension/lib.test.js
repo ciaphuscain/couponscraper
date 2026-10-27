@@ -106,3 +106,18 @@ test("isAmazonPage", () => {
   assert.ok(!L.isAmazonPage("https://www.amazon.in.evil.example/"));
   assert.ok(!L.isAmazonPage("http://www.amazon.in/"));
 });
+
+test("offers_area_seen distinguishes 'no offers' from 'not loaded'", () => {
+  const withArea = { querySelector: (s) => (s === "#vsxoffers_feature_div" ? { textContent: "" } : null),
+                     querySelectorAll: () => ({ forEach: () => {} }) };
+  assert.strictEqual(L.extractPage(withArea, "https://www.amazon.in/dp/B09XS7JWHH").offers_area_seen, true);
+  const without = { querySelector: () => null, querySelectorAll: () => ({ forEach: () => {} }) };
+  assert.strictEqual(L.extractPage(without, "https://www.amazon.in/dp/B09XS7JWHH").offers_area_seen, false);
+});
+
+test("owner-approved extra redemption domains", () => {
+  assert.ok(!L.isSafeRedemptionUrl("https://www.examplebank.com/offer"));
+  assert.ok(L.isSafeRedemptionUrl("https://www.examplebank.com/offer", ["www.examplebank.com"]));
+  assert.ok(!L.isSafeRedemptionUrl("http://www.examplebank.com/offer", ["www.examplebank.com"]));
+  assert.ok(!L.isSafeRedemptionUrl("https://evil.example/", [{ toString: () => "evil.example" }]));
+});

@@ -295,8 +295,10 @@ class App:
         with self.db.tx() as c:
             ingest.ingest_result(
                 c, "extension",
-                FetchResult(records, snapshot=bool(body.get("complete", True)), data_origin="live", snapshot_asin=asin),
-                now, stats, frozenset(repo.get_settings(self.db).get("extra_redemption_domains", [])),
+                FetchResult(records, snapshot=bool(body.get("complete", True)), data_origin="live", snapshot_asin=asin,
+                            # Only an offers area the extension actually saw can prove "no offers here".
+                            empty_is_authoritative=body.get("offers_area_seen") is True),
+                now, stats, repo.extra_domains(repo.get_settings(self.db)),
             )
             c.execute("UPDATE sources SET last_success_at=?, last_fetch_at=? WHERE id='extension'", (iso(now), iso(now)))
         if body.get("watch"):
@@ -448,8 +450,15 @@ class App:
                                      purchase_id=purchase)
             return redirect("/history", "Purchase recorded")
         if a == "/actions/cashback":
-            amount = _form_rupees(f.get("amount", ""), "amount") or 0
-            repo.transition_cashback(self.db, int(f.get("record_id", "0")), f.get("status", ""), amount, now,
+            rid = int(f.get("record_id", "0"))
+            amount = _form_rupees(f.get("amount", ""), "amount")
+            if amount is None:
+                # Blank means "unchanged": keep the known amount, falling back to the expected one.
+                rec = self.db.one("SELECT amount, expected FROM cashback_records WHERE id=?", (rid,))
+                if rec is None:
+                    raise repo.NotFound(rid)
+                amount = 0 if f.get("status") == "rejected" else (rec["amount"] or rec["expected"])
+            repo.transition_cashback(self.db, rid, f.get("status", ""), amount, now,
                                      note=f.get("note", ""), expected_version_status=f.get("from") or None)
             return redirect("/history", "Cashback updated")
         if a == "/actions/settings":
@@ -477,7 +486,7 @@ class App:
         with self.db.tx() as c:
             ingest.ingest_result(c, "manual", FetchResult(
                 [SourceRecord(data, evidence, auth, raw_text=text)], snapshot=False, data_origin="manual"), now, stats,
-                frozenset(repo.get_settings(self.db).get("extra_redemption_domains", [])))
+                repo.extra_domains(repo.get_settings(self.db)))
         if stats.rejected:
             return redirect("/offers", "Couldn't understand that offer: " + "; ".join(stats.errors)[:150])
         back = f"/product/{data['asins'][0]}" if data.get("asins") else "/offers"

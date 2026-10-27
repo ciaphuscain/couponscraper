@@ -76,6 +76,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
           list_price: Number.isInteger(p.list_price) ? p.list_price : null, seller: p.seller || null,
           in_stock: typeof p.in_stock === "boolean" ? p.in_stock : null,
           offers: Array.isArray(p.offers) ? p.offers.slice(0, 30) : [], watch: !!p.watch,
+          offers_area_seen: p.offers_area_seen === true,
         });
       }
       case "track":

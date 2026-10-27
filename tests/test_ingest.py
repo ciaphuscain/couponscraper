@@ -85,6 +85,24 @@ class IngestTests(unittest.TestCase):
         ingest.run_source(self.db, "b", NOW + timedelta(hours=2), StaticAdapter([HDFC], snapshot=False))
         self.assertIsNone({r["kind"]: r for r in self.offers()}["bank_instant"]["withdrawn_at"])
 
+    def test_empty_snapshot_does_not_withdraw(self):
+        ingest.run_source(self.db, "a", NOW, StaticAdapter([HDFC, COUPON]))
+        s = ingest.run_source(self.db, "a", NOW + timedelta(hours=1), StaticAdapter([]))
+        self.assertEqual(s.missing_marked, 0)
+        self.assertTrue(any("empty listing" in w for w in s.warnings))
+        self.assertTrue(all(r["withdrawn_at"] is None for r in self.offers()))
+
+    def test_force_never_overrides_disabled_or_terms(self):
+        ingest.run_source(self.db, "a", NOW, StaticAdapter([], fail=SourceError("403", kind="auth")))
+        s = ingest.run_source(self.db, "a", NOW + timedelta(days=1), StaticAdapter([COUPON]), force=True)
+        self.assertEqual(s.status, "skipped")
+        ingest.register_source(self.db, "feed", "rss", "Feed", {"url": "https://example.com/feed"}, NOW)
+        self.assertEqual(ingest.run_source(self.db, "feed", NOW, force=True).status, "skipped")
+        ingest.register_source(self.db, "c", "file_import", "c", {}, NOW, min_interval_s=86_400)
+        ingest.run_source(self.db, "c", NOW, StaticAdapter([COUPON]))
+        # ...but it does skip the interval wait
+        self.assertEqual(ingest.run_source(self.db, "c", NOW + timedelta(minutes=1), StaticAdapter([COUPON]), force=True).status, "ok")
+
     def test_high_reject_rate_does_not_withdraw(self):
         ingest.run_source(self.db, "a", NOW, StaticAdapter([HDFC, COUPON]))
         broken = [{"kind": "nonsense"}, {"kind": "nonsense"}, {"kind": "nonsense"}, COUPON]

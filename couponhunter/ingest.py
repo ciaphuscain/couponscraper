@@ -91,7 +91,7 @@ def ensure_builtin_sources(db: Database, now: datetime) -> None:
             register_source(db, sid, sid, name, {}, now, terms_reviewed=True, min_interval_s=0, stale_after_h=stale)
 
 
-def source_due(row: sqlite3.Row, now: datetime) -> tuple[bool, str]:
+def source_due(row: sqlite3.Row, now: datetime, ignore_timing: bool = False) -> tuple[bool, str]:
     if not row["enabled"]:
         return False, f"disabled: {row['disabled_reason'] or 'by owner'}"
     adapter = ADAPTERS.get(row["adapter"])
@@ -99,6 +99,8 @@ def source_due(row: sqlite3.Row, now: datetime) -> tuple[bool, str]:
         return False, "not a scheduled source"
     if adapter.requires_terms_review and not row["terms_reviewed"]:
         return False, "terms not reviewed by owner"
+    if ignore_timing:
+        return True, "forced"
     nxt = parse_iso(row["next_fetch_at"])
     if nxt and now < nxt:
         return False, f"backing off until {row['next_fetch_at']}"
@@ -114,12 +116,13 @@ def run_source(db: Database, source_id: str, now: datetime, adapter_obj: Any = N
     if row is None:
         raise KeyError(source_id)
     stats = RunStats(source_id)
-    if not force:
-        ok, why = source_due(row, now)
-        if not ok:
-            stats.status = "skipped"
-            stats.warnings.append(why)
-            return stats
+    # --force only skips interval/backoff timing; it never overrides a disabled source
+    # (e.g. after an access refusal) or a missing terms review.
+    ok, why = source_due(row, now, ignore_timing=force)
+    if not ok:
+        stats.status = "skipped"
+        stats.warnings.append(why)
+        return stats
     adapter_obj = adapter_obj or ADAPTERS[row["adapter"]]()
     with db.tx() as c:
         run_id = c.execute(
@@ -138,8 +141,10 @@ def run_source(db: Database, source_id: str, now: datetime, adapter_obj: Any = N
     stats.warnings.extend(result.warnings)
     if row["schema_fingerprint"] and result.schema_fingerprint and row["schema_fingerprint"] != result.schema_fingerprint:
         stats.warnings.append("source record shape changed since last run")
+    from .repo import extra_domains, get_settings  # local import: repo depends on nothing in ingest
+
     with db.tx() as c:
-        ingest_result(c, source_id, result, now, stats)
+        ingest_result(c, source_id, result, now, stats, extra_domains(get_settings(db)))
         c.execute(
             """UPDATE sources SET last_success_at=?, consecutive_failures=0, last_error=NULL,
                    next_fetch_at=NULL, schema_fingerprint=COALESCE(?, schema_fingerprint) WHERE id=?""",
@@ -212,7 +217,9 @@ def ingest_result(c: sqlite3.Connection, source_id: str, result: FetchResult, no
     reject_ratio = stats.rejected / stats.fetched if stats.fetched else 0
     if stats.rejected:
         stats.status = "partial"
-    if result.snapshot and reject_ratio <= MAX_REJECT_RATIO_FOR_SNAPSHOT:
+    if result.snapshot and not result.records and not result.empty_is_authoritative:
+        stats.warnings.append("empty listing: not withdrawing any offers (could be a partial page or feed)")
+    elif result.snapshot and reject_ratio <= MAX_REJECT_RATIO_FOR_SNAPSHOT:
         stats.missing_marked = _mark_missing(c, source_id, seen, now, result.snapshot_asin)
     elif result.snapshot:
         stats.warnings.append(
