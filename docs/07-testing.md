@@ -68,3 +68,10 @@ CI (`.github/workflows/ci.yml`) runs the first two plus a CLI smoke test on Ubun
 * Flat-price "lowest observed" and within-noise drops flagged as deals: found by
   `test_inflated_reference_price` and Experiment D.
 * Synthetic fixture offers merging into real captures: found while writing the E2E test.
+* A high-effort code review of the finished codebase found 10 more real defects, all fixed with
+  tests: `--force` overriding disabled sources; blank cashback amounts zeroing realised savings;
+  feedback corrections ignored (and, in the first fix, keyed per render so still not corrected,
+  which the strengthened E2E assertion caught); empty snapshots withdrawing every offer; an
+  unlocked evaluation cache shared by threads; the panel reverting after Save; the domain
+  allowlist ignored on some paths; and three Windows logon-task problems (battery defaults, no
+  restart after a failed update, old tasks never migrated), now exercised in Windows CI.

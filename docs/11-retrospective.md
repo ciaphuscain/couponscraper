@@ -80,6 +80,8 @@ Generating the worked-example table from the optimizer kept the docs honest. Mea
 before optimising found that the real cost was the 2ⁿ basis readings and per-view
 recomputation, not SQL.
 
+**Late review.** A final high-effort code review found 10 defects the tests had missed; most were interaction bugs between features built at different times (cache + threads, snapshots + lazy pages, setup + an already-running server). The lesson: review the whole system once it exists, not just each diff.
+
 **What went wrong (and was caught).** Five real bugs: double-escaped HTML (Python `str`
 concatenation returning plain `str` from a `Raw` subclass), an unsound two-reading shortcut,
 scenario trimming that changed the ranked answer, deal rules that called noise a deal, and
