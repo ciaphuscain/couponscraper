@@ -22,7 +22,6 @@ from tests.factories import (
     NOW,
     NO,
     SBI_DC,
-    UNKNOWN,
     YES,
     cashback_5pct,
     coupon_500,

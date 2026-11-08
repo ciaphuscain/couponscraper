@@ -3,7 +3,7 @@
 Run everything:
 
 ```powershell
-python -m unittest discover -s tests -t . -v      # 145 Python tests, stdlib only
+python -m unittest discover -s tests -t . -v      # 159 Python tests, stdlib only
 node --test tests/extension/lib.test.js           # extension logic
 node tests/extension/e2e.js                       # real Chromium + extension + backend (needs Playwright)
 ```

@@ -67,7 +67,7 @@ docs/08-benchmarks.md), and **G** in real time on the laptop (a 31-day *simulate
 | Performance | docs/08 measured numbers | Within targets on realistic data | Cold multi-product views | Evaluate only changed products |
 | Reliability | Backoff, auto-disable, stale-not-valid, leases, catch-up, retries | Good | Single process down = no alerts | Task Scheduler restart policy (documented) |
 | Security | 18-row threat model with tests | Strong for local use | Local malware can read the token | OS-level protections |
-| Testing | 145 Python tests, 9 Node tests, E2E, CI on Windows (incl. setup script) | Broad | Not tested against live amazon.in pages | Capture real pages as fixtures (privately) |
+| Testing | 159 Python tests, 11 Node tests, E2E, CI on Windows (incl. setup script) | Broad | Not tested against live amazon.in pages | Capture real pages as fixtures (privately) |
 | Observability | Health page, source_runs, job_runs, outbox, JSON logs with redaction | Adequate | No metrics time series | Add counters to status API |
 | Documentation | 11 docs + ADRs, generated worked example | Matches implementation | Will drift | Keep generated tables generated |
 | Operational cost | ₹0; stdlib; local | Met | — | — |
